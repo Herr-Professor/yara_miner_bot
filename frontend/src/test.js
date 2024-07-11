@@ -1,0 +1,4 @@
+--primary-color: #FF8C00;
+    --secondary-color: #808080;
+    --background-color: #F5F5F5;
+    --text-color: #333333;
