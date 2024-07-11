@@ -248,6 +248,59 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+.claim-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.mining-progress {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.progress-bar {
+    height: 20px;
+    background-color: var(--primary-color);
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.time-left {
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+.claim-button button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+}
+
+.claim-button button:disabled {
+    background-color: var(--light-gray);
+    cursor: not-allowed;
+}
   
   /* Media Queries */
   @media (max-width: 600px) {
@@ -274,15 +327,19 @@
     }
   
     .balance-claim-container {
-      flex-direction: column;
+      flex-direction: row;
     }
   
     .balance, .claim-button {
-      width: 100%;
+      width: 48%;
       margin-bottom: 10px;
     }
   
     .games-grid {
       grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .progress-text {
+        font-size: 10px;
     }
   }

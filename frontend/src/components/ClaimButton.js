@@ -28,6 +28,11 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
         to: { scale: isLoading ? 0.95 : 1 },
     });
 
+    const progressAnimation = useSpring({
+        width: `${(miningProgress / 3500) * 100}%`,
+        from: { width: '0%' },
+    });
+
     const handleClick = async () => {
         setIsLoading(true);
         await onClaim();
@@ -36,9 +41,11 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
 
     return (
         <div className="claim-button">
-            <h2>Mining Progress</h2>
-            <p>{miningProgress} / 3500</p>
-            <p>{timeLeft}</p>
+            <div className="mining-progress">
+                <animated.div className="progress-bar" style={progressAnimation} />
+                <p className="progress-text">{miningProgress} / 3500</p>
+            </div>
+            <p className="time-left">{timeLeft}</p>
             <animated.button 
                 onClick={handleClick} 
                 disabled={timeLeft !== 'Claim Now!' || isLoading}

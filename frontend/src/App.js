@@ -81,7 +81,6 @@ function App() {
 
     return (
         <div className="App">
-            <Header />
             <nav className="tab-navigation">
                 {tabs.map((tab) => (
                     <button

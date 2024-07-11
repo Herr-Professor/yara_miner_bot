@@ -71,7 +71,6 @@ function ReferralSystem({ balance, setBalance }) {
 
     return (
         <div className="referral-system">
-            <h2>Referral System</h2>
             <p>Your referral code: {referralCode}</p>
             <button onClick={copyToClipboard}>Copy Code</button>
             <p>Share this code with your friends to earn 25% of their profits!</p>
