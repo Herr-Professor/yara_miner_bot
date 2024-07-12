@@ -142,7 +142,7 @@ def claim(update, context):
         update.message.reply_text("No tokens to claim. Make sure you've been mining for at least 8 hours.")
 
 def main():
-    updater = Updater("7031484757:AAFxCtzFo5QiXzbO9_-tA-2wLGEasvtqxug", use_context=True)
+    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
