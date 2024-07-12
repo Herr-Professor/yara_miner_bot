@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
+import logging
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crypto_game.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Database Models
 class User(db.Model):
@@ -44,25 +51,41 @@ def generate_referral_code():
 # API Routes
 @app.route('/user', methods=['POST'])
 def create_user():
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    name = data.get('name')
+    try:
+        data = request.json
+        app.logger.info(f"Received data: {data}")
+        
+        if not data:
+            return jsonify({"message": "No input data provided"}), 400
+        
+        telegram_id = data.get('telegram_id')
+        name = data.get('name')
+        
+        app.logger.info(f"Creating user with telegram_id: {telegram_id}, name: {name}")
+        
+        if not telegram_id or not name:
+            return jsonify({"message": "Both telegram_id and name are required"}), 400
 
-    existing_user = User.query.filter_by(telegram_id=telegram_id).first()
-    if existing_user:
-        return jsonify({"message": "User already exists"}), 400
+        existing_user = User.query.filter_by(telegram_id=telegram_id).first()
+        if existing_user:
+            return jsonify({"message": "User already exists"}), 400
 
-    new_user = User(
-        id=str(uuid.uuid4()),
-        telegram_id=telegram_id,
-        name=name,
-        referral_code=generate_referral_code(),
-        last_referral_claim=datetime.utcnow()
-    )
-    db.session.add(new_user)
-    db.session.commit()
+        new_user = User(
+            id=str(uuid.uuid4()),
+            telegram_id=telegram_id,
+            name=name,
+            referral_code=generate_referral_code(),
+            last_referral_claim=datetime.utcnow()
+        )
+        db.session.add(new_user)
+        db.session.commit()
 
-    return jsonify({"message": "User created successfully", "user_id": new_user.id}), 201
+        app.logger.info(f"User created successfully with id: {new_user.id}")
+        return jsonify({"message": "User created successfully", "user_id": new_user.id}), 201
+    except Exception as e:
+        app.logger.error(f"Error creating user: {str(e)}")
+        db.session.rollback()
+        return jsonify({"message": f"Failed to create user: {str(e)}"}), 500
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
@@ -187,6 +210,14 @@ def update_referral_claim_time(user_id):
     db.session.commit()
 
     return jsonify({"message": "Referral claim time updated successfully"})
+
+@app.route('/test_db')
+def test_db():
+    try:
+        db.session.query(User).first()
+        return jsonify({"message": "Database connection successful"}), 200
+    except Exception as e:
+        return jsonify({"message": f"Database connection failed: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
