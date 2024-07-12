@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSpring, animated } from 'react-spring';
+import { toast } from 'react-toastify';
 
 function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
     const [timeLeft, setTimeLeft] = useState('');
@@ -35,8 +36,13 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
 
     const handleClick = async () => {
         setIsLoading(true);
-        await onClaim();
-        setIsLoading(false);
+        try {
+            await onClaim();
+        } catch (error) {
+            toast.error('Failed to claim tokens. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

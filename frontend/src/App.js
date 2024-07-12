@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useTransition, animated } from 'react-spring';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Header from './components/Header';
 import Balance from './components/Balance';
 import ClaimButton from './components/ClaimButton';
 import TaskList from './components/TaskList';
@@ -10,10 +9,12 @@ import Games from './components/Games';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
 import './App.css';
+import { createUser, getUser, claimTokens, updateGamePoints, getLeaderboard } from './services/api';
 
 function App() {
+    const [userId, setUserId] = useState(null);
     const [balance, setBalance] = useState(0);
-    const [nextClaimTime, setNextClaimTime] = useState(new Date().getTime() + 8 * 60 * 60 * 1000);
+    const [nextClaimTime, setNextClaimTime] = useState(null);
     const [tasks, setTasks] = useState([
         { id: 1, description: 'Claim tokens 3 times', reward: 50, completed: false },
         { id: 2, description: 'Invite 2 friends', reward: 100, completed: false },
@@ -29,22 +30,60 @@ function App() {
     });
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setMiningProgress(prev => {
-                if (prev < 3500) {
-                    return prev + 1;
-                }
-                clearInterval(interval);
-                return 3500;
-            });
-        }, (8 * 60 * 60 * 1000) / 3500); // 8 hours divided by 3500 steps
-
-        return () => clearInterval(interval);
+        // Simulate user authentication or retrieve stored user ID
+        const storedUserId = localStorage.getItem('userId');
+        if (storedUserId) {
+            setUserId(storedUserId);
+            fetchUserData(storedUserId);
+        } else {
+            createNewUser();
+        }
     }, []);
 
-    const handleClaim = () => {
+    const createNewUser = async () => {
         try {
-            setBalance(prevBalance => prevBalance + 100);
+            const telegramId = 'user_' + Math.random().toString(36).substr(2, 9); // Generate a random ID for demo
+            const name = 'User ' + Math.floor(Math.random() * 1000); // Generate a random name for demo
+            const response = await createUser(telegramId, name);
+            setUserId(response.user_id);
+            localStorage.setItem('userId', response.user_id);
+            fetchUserData(response.user_id);
+        } catch (error) {
+            toast.error('Failed to create user');
+        }
+    };
+
+    const fetchUserData = async (id) => {
+        try {
+            const userData = await getUser(id);
+            setBalance(userData.balance);
+            setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
+        } catch (error) {
+            toast.error('Failed to fetch user data');
+        }
+    };
+
+    useEffect(() => {
+        if (nextClaimTime) {
+            const interval = setInterval(() => {
+                const now = new Date().getTime();
+                const timeLeft = nextClaimTime - now;
+                if (timeLeft > 0) {
+                    setMiningProgress(3500 - (timeLeft / (8 * 60 * 60 * 1000)) * 3500);
+                } else {
+                    setMiningProgress(3500);
+                    clearInterval(interval);
+                }
+            }, 1000);
+
+            return () => clearInterval(interval);
+        }
+    }, [nextClaimTime]);
+
+    const handleClaim = async () => {
+        try {
+            const response = await claimTokens(userId);
+            setBalance(response.new_balance);
             setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
             setMiningProgress(0);
             toast.success('Tokens claimed successfully!');
@@ -53,18 +92,20 @@ function App() {
         }
     };
 
-    const handleTaskComplete = (taskId) => {
+    const handleTaskComplete = async (taskId) => {
         try {
-            setTasks(prevTasks => 
-                prevTasks.map(task => 
-                    task.id === taskId 
-                        ? { ...task, completed: true } 
-                        : task
-                )
-            );
             const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                setBalance(prevBalance => prevBalance + task.reward);
+            if (task && !task.completed) {
+                const newBalance = balance + task.reward;
+                await updateGamePoints(userId, newBalance);
+                setBalance(newBalance);
+                setTasks(prevTasks => 
+                    prevTasks.map(t => 
+                        t.id === taskId 
+                            ? { ...t, completed: true } 
+                            : t
+                    )
+                );
                 toast.success(`Task completed! You earned ${task.reward} tokens.`);
             }
         } catch (error) {
@@ -109,8 +150,8 @@ function App() {
                         </>
                     )}
                     {item === 'games' && <Games />}
-                    {item === 'leaderboard' && <Leaderboard />}
-                    {item === 'referral' && <ReferralSystem balance={balance} setBalance={setBalance} />}
+                    {item === 'leaderboard' && <Leaderboard getLeaderboard={getLeaderboard} />}
+                    {item === 'referral' && <ReferralSystem userId={userId} balance={balance} setBalance={setBalance} />}
                 </animated.div>
             ))}
             <ToastContainer position="bottom-right" />
