@@ -8,11 +8,12 @@ import TaskList from './components/TaskList';
 import Games from './components/Games';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
+import SignUp from './components/SignUp';
 import './App.css';
-import { createUser, getUser, claimTokens, updateGamePoints, getLeaderboard } from './services/api';
+import { login, getUser, claimTokens, updateGamePoints, getLeaderboard } from './services/api';
 
 function App() {
-    const [userId, setUserId] = useState(null);
+    const [user, setUser] = useState(null);
     const [balance, setBalance] = useState(0);
     const [nextClaimTime, setNextClaimTime] = useState(null);
     const [tasks, setTasks] = useState([
@@ -30,37 +31,26 @@ function App() {
     });
 
     useEffect(() => {
-        // Simulate user authentication or retrieve stored user ID
-        const storedUserId = localStorage.getItem('userId');
-        if (storedUserId) {
-            setUserId(storedUserId);
-            fetchUserData(storedUserId);
-        } else {
-            createNewUser();
+        const storedSecretCode = localStorage.getItem('secretCode');
+        if (storedSecretCode) {
+            loginUser(storedSecretCode);
         }
     }, []);
 
-    const createNewUser = async () => {
+    const loginUser = async (secretCode) => {
         try {
-            const telegramId = 'user_' + Math.random().toString(36).substr(2, 9); // Generate a random ID for demo
-            const name = 'User ' + Math.floor(Math.random() * 1000); // Generate a random name for demo
-            const response = await createUser(telegramId, name);
-            setUserId(response.user_id);
-            localStorage.setItem('userId', response.user_id);
-            fetchUserData(response.user_id);
-        } catch (error) {
-            toast.error('Failed to create user');
-        }
-    };
-
-    const fetchUserData = async (id) => {
-        try {
-            const userData = await getUser(id);
+            const userData = await login(secretCode);
+            setUser(userData);
             setBalance(userData.balance);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
         } catch (error) {
-            toast.error('Failed to fetch user data');
+            toast.error('Failed to log in. Please try again.');
         }
+    };
+
+    const handleSignUp = (userId, secretCode) => {
+        localStorage.setItem('secretCode', secretCode);
+        loginUser(secretCode);
     };
 
     useEffect(() => {
@@ -82,7 +72,7 @@ function App() {
 
     const handleClaim = async () => {
         try {
-            const response = await claimTokens(userId);
+            const response = await claimTokens(user.user_id);
             setBalance(response.new_balance);
             setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
             setMiningProgress(0);
@@ -97,7 +87,7 @@ function App() {
             const task = tasks.find(t => t.id === taskId);
             if (task && !task.completed) {
                 const newBalance = balance + task.reward;
-                await updateGamePoints(userId, newBalance);
+                await updateGamePoints(user.user_id, newBalance);
                 setBalance(newBalance);
                 setTasks(prevTasks => 
                     prevTasks.map(t => 
@@ -119,6 +109,10 @@ function App() {
         { id: 'leaderboard', icon: 'fa-trophy', label: 'Leaderboard' },
         { id: 'referral', icon: 'fa-user-plus', label: 'Referral' },
     ];
+
+    if (!user) {
+        return <SignUp onSignUp={handleSignUp} />;
+    }
 
     return (
         <div className="App">
@@ -151,7 +145,7 @@ function App() {
                     )}
                     {item === 'games' && <Games />}
                     {item === 'leaderboard' && <Leaderboard getLeaderboard={getLeaderboard} />}
-                    {item === 'referral' && <ReferralSystem userId={userId} balance={balance} setBalance={setBalance} />}
+                    {item === 'referral' && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
                 </animated.div>
             ))}
             <ToastContainer position="bottom-right" />

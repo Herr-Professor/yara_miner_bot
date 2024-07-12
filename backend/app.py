@@ -4,10 +4,12 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
 import logging
+import random
+import string
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crypto_game.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -17,8 +19,8 @@ logging.basicConfig(level=logging.DEBUG)
 # Database Models
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True)
-    telegram_id = db.Column(db.String(50), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(5), unique=True, nullable=False)
+    secret_code = db.Column(db.String(15), unique=True, nullable=False)
     balance = db.Column(db.Float, default=0)
     last_claim = db.Column(db.DateTime)
     referral_code = db.Column(db.String(10), unique=True)
@@ -48,6 +50,9 @@ with app.app_context():
 def generate_referral_code():
     return uuid.uuid4().hex[:8]
 
+def generate_secret_code():
+    return 'yX-' + ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+
 # API Routes
 @app.route('/user', methods=['POST'])
 def create_user():
@@ -58,22 +63,22 @@ def create_user():
         if not data:
             return jsonify({"message": "No input data provided"}), 400
         
-        telegram_id = data.get('telegram_id')
-        name = data.get('name')
+        username = data.get('username')
         
-        app.logger.info(f"Creating user with telegram_id: {telegram_id}, name: {name}")
+        app.logger.info(f"Creating user with username: {username}")
         
-        if not telegram_id or not name:
-            return jsonify({"message": "Both telegram_id and name are required"}), 400
+        if not username or len(username) != 5:
+            return jsonify({"message": "Username must be exactly 5 characters long"}), 400
 
-        existing_user = User.query.filter_by(telegram_id=telegram_id).first()
+        existing_user = User.query.filter_by(username=username).first()
         if existing_user:
-            return jsonify({"message": "User already exists"}), 400
+            return jsonify({"message": "Username already exists"}), 400
 
+        secret_code = generate_secret_code()
         new_user = User(
             id=str(uuid.uuid4()),
-            telegram_id=telegram_id,
-            name=name,
+            username=username,
+            secret_code=secret_code,
             referral_code=generate_referral_code(),
             last_referral_claim=datetime.utcnow()
         )
@@ -81,11 +86,36 @@ def create_user():
         db.session.commit()
 
         app.logger.info(f"User created successfully with id: {new_user.id}")
-        return jsonify({"message": "User created successfully", "user_id": new_user.id}), 201
+        return jsonify({
+            "message": "User created successfully",
+            "user_id": new_user.id,
+            "secret_code": secret_code
+        }), 201
     except Exception as e:
         app.logger.error(f"Error creating user: {str(e)}")
         db.session.rollback()
         return jsonify({"message": f"Failed to create user: {str(e)}"}), 500
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    secret_code = data.get('secret_code')
+    
+    if not secret_code:
+        return jsonify({"message": "Secret code is required"}), 400
+    
+    user = User.query.filter_by(secret_code=secret_code).first()
+    if not user:
+        return jsonify({"message": "Invalid secret code"}), 401
+    
+    return jsonify({
+        "user_id": user.id,
+        "username": user.username,
+        "balance": user.balance,
+        "last_claim": user.last_claim,
+        "referral_code": user.referral_code,
+        "last_referral_claim": user.last_referral_claim
+    }), 200
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
@@ -98,12 +128,12 @@ def get_user(user_id):
 
     return jsonify({
         "id": user.id,
-        "name": user.name,
+        "username": user.username,
         "balance": user.balance,
         "last_claim": user.last_claim,
         "referral_code": user.referral_code,
         "last_referral_claim": user.last_referral_claim,
-        "referrals": [{"id": ref.id, "name": ref.name} for ref in referred_users]
+        "referrals": [{"id": ref.id, "username": ref.username} for ref in referred_users]
     })
 
 @app.route('/claim', methods=['POST'])
@@ -117,7 +147,7 @@ def claim_tokens():
     if user.last_claim and (now - user.last_claim) < timedelta(hours=8):
         return jsonify({"message": "Cannot claim yet"}), 400
 
-    user.balance += 100  # Add 100 tokens
+    user.balance += 3500  # Add 100 tokens
     user.last_claim = now
     db.session.commit()
 
@@ -169,7 +199,7 @@ def get_user_referrals(user_id):
     referrals = Referral.query.filter_by(referrer_id=user_id).all()
     referred_users = [User.query.get(ref.referred_id) for ref in referrals]
     return jsonify([
-        {"id": user.id, "name": user.name}
+        {"id": user.id, "username": user.username}
         for user in referred_users
     ])
 
@@ -210,6 +240,28 @@ def update_referral_claim_time(user_id):
     db.session.commit()
 
     return jsonify({"message": "Referral claim time updated successfully"})
+
+@app.route('/user/<user_id>/balance', methods=['GET'])
+def get_balance(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    return jsonify({"balance": user.balance})
+
+@app.route('/user/<user_id>/balance', methods=['PUT'])
+def update_balance(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    
+    new_balance = request.json.get('balance')
+    if new_balance is None:
+        return jsonify({"message": "New balance not provided"}), 400
+    
+    user.balance = new_balance
+    db.session.commit()
+    
+    return jsonify({"message": "Balance updated successfully", "new_balance": user.balance})
 
 @app.route('/test_db')
 def test_db():
