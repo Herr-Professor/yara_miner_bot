@@ -2,8 +2,6 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import uuid
-import json
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crypto_game.db'
@@ -13,9 +11,7 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True)
     telegram_id = db.Column(db.String(50), unique=True, nullable=False)
-    username = db.Column(db.String(50), nullable=True)
-    first_name = db.Column(db.String(100), nullable=True)
-    last_name = db.Column(db.String(100), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
     balance = db.Column(db.Float, default=0)
     last_claim = db.Column(db.DateTime)
     referral_code = db.Column(db.String(10), unique=True)
@@ -38,13 +34,6 @@ class ReferralClaim(db.Model):
     amount = db.Column(db.Float)
     claim_time = db.Column(db.DateTime, default=datetime.utcnow)
 
-class UserState(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('user.id'))
-    is_mining = db.Column(db.Boolean, default=False)
-    mining_start_time = db.Column(db.DateTime)
-    last_claim_time = db.Column(db.DateTime)
-
 with app.app_context():
     db.create_all()
 
@@ -52,110 +41,9 @@ with app.app_context():
 def generate_referral_code():
     return uuid.uuid4().hex[:8]
 
-def create_user(telegram_id, username, first_name, last_name):
-    user = User.query.filter_by(telegram_id=telegram_id).first()
-    if not user:
-        user = User(
-            id=str(uuid.uuid4()),
-            telegram_id=telegram_id,
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
-            referral_code=str(uuid.uuid4())[:8]
-        )
-        db.session.add(user)
-        db.session.commit()
-    return user
-
-def get_user_state(user_id):
-    state = UserState.query.filter_by(user_id=user_id).first()
-    if not state:
-        state = UserState(user_id=user_id)
-        db.session.add(state)
-        db.session.commit()
-    return state
-
-def start_mining(user_id):
-    state = get_user_state(user_id)
-    if not state.is_mining:
-        state.is_mining = True
-        state.mining_start_time = datetime.utcnow()
-        db.session.commit()
-        return True
-    return False
-
-def check_mining_status(user_id):
-    state = get_user_state(user_id)
-    if state.is_mining:
-        mining_duration = datetime.utcnow() - state.mining_start_time
-        if mining_duration >= timedelta(hours=8):
-            return "ready_to_claim"
-        else:
-            return "mining"
-    return "not_mining"
-
-def claim_tokens(user_id):
-    user = User.query.get(user_id)
-    state = get_user_state(user_id)
-    if state.is_mining and (datetime.utcnow() - state.mining_start_time) >= timedelta(hours=8):
-        tokens_earned = 100  # You can adjust this value
-        user.balance += tokens_earned
-        state.is_mining = False
-        state.last_claim_time = datetime.utcnow()
-        db.session.commit()
-        return tokens_earned
-    return 0
-
-# Telegram bot handlers
-def start(update, context):
-    user = create_user(
-        update.effective_user.id,
-        update.effective_user.username,
-        update.effective_user.first_name,
-        update.effective_user.last_name
-    )
-    update.message.reply_text(f"Welcome, {user.first_name}! Your balance is {user.balance} tokens.")
-
-def start_mining_command(update, context):
-    user = User.query.filter_by(telegram_id=str(update.effective_user.id)).first()
-    if start_mining(user.id):
-        update.message.reply_text("Mining started. You can claim your tokens after 8 hours.")
-    else:
-        update.message.reply_text("You're already mining.")
-
-def check_status(update, context):
-    user = User.query.filter_by(telegram_id=str(update.effective_user.id)).first()
-    status = check_mining_status(user.id)
-    if status == "ready_to_claim":
-        update.message.reply_text("Your tokens are ready to be claimed!")
-    elif status == "mining":
-        update.message.reply_text("You're currently mining. Keep going!")
-    else:
-        update.message.reply_text("You're not mining. Start mining to earn tokens!")
-
-def claim(update, context):
-    user = User.query.filter_by(telegram_id=str(update.effective_user.id)).first()
-    tokens_claimed = claim_tokens(user.id)
-    if tokens_claimed > 0:
-        update.message.reply_text(f"You've claimed {tokens_claimed} tokens! Your new balance is {user.balance}.")
-    else:
-        update.message.reply_text("No tokens to claim. Make sure you've been mining for at least 8 hours.")
-
-def main():
-    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
-    dp = updater.dispatcher
-
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("mine", start_mining_command))
-    dp.add_handler(CommandHandler("status", check_status))
-    dp.add_handler(CommandHandler("claim", claim))
-
-    updater.start_polling()
-    updater.idle()
-
 # API Routes
 @app.route('/user', methods=['POST'])
-def create_user_route():
+def create_user():
     data = request.json
     telegram_id = data.get('telegram_id')
     name = data.get('name')
@@ -196,7 +84,7 @@ def get_user(user_id):
     })
 
 @app.route('/claim', methods=['POST'])
-def claim_tokens_route():
+def claim_tokens():
     user_id = request.json.get('user_id')
     user = User.query.get(user_id)
     if not user:
@@ -301,5 +189,4 @@ def update_referral_claim_time(user_id):
     return jsonify({"message": "Referral claim time updated successfully"})
 
 if __name__ == '__main__':
-    main()
     app.run(debug=True)
