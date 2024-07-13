@@ -33,10 +33,12 @@ function Leaderboard() {
             {leaders.length > 0 ? (
                 <ul>
                     {leaders.map((leader, index) => (
-                        <li key={leader.user_id}>
+                        <li key={index}>
                             <span className="player-rank">{index + 1}</span>
-                            <span className="player-name">User {leader.user_id.slice(0, 6)}</span>
-                            <span className="player-score">{leader.points} YARA</span>
+                            <span className="player-name">
+                                {leader.username ? ` ${leader.username}` : 'Unknown'}
+                            </span>
+                            <span className="player-balance">{leader.balance} YARA</span>
                         </li>
                     ))}
                 </ul>

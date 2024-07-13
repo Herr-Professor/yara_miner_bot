@@ -1,4 +1,3 @@
-// src/services/api.js
 import { API_BASE_URL } from '../config';
 
 const headers = {
@@ -71,16 +70,19 @@ export const addReferral = async (referrerCode, referredId) => {
   }
 };
 
-export const updateGamePoints = async (userId, points) => {
+export const updateBalance = async (userId, points) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/game_points`, {
+    const response = await fetch(`${API_BASE_URL}/update_balance`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ user_id: userId, points }),
     });
+    if (!response.ok) {
+      throw new Error('Failed to update balance');
+    }
     return response.json();
   } catch (error) {
-    console.error('Error updating game points:', error);
+    console.error('Error updating balance:', error);
     throw error;
   }
 };
@@ -146,7 +148,7 @@ export const getBalance = async (userId) => {
   }
 };
 
-export const updateBalance = async (userId, newBalance) => {
+export const updateBalanceDirectly = async (userId, newBalance) => {
   try {
     const response = await fetch(`${API_BASE_URL}/user/${userId}/balance`, {
       method: 'PUT',

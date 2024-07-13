@@ -110,7 +110,8 @@ function ReferralSystem({ userId, balance, setBalance }) {
                 <ul>
                     {referrals.map(referral => (
                         <li key={referral.id}>
-                            <span>User {referral.name}</span>
+                            <span>User {referral.username}</span>
+                            <span>Balance: {referral.balance} YARA</span>
                         </li>
                     ))}
                 </ul>

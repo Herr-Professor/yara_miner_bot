@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
@@ -12,6 +13,7 @@ CORS(app)  # Enable CORS for all routes
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)  # Set up Flask-Migrate
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,16 +27,13 @@ class User(db.Model):
     last_claim = db.Column(db.DateTime)
     referral_code = db.Column(db.String(10), unique=True)
     last_referral_claim = db.Column(db.DateTime)
+    cipher_solved = db.Column(db.Boolean, default=False)  # New field
+    next_cipher_time = db.Column(db.DateTime)  # New field
 
 class Referral(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     referrer_id = db.Column(db.String(36), db.ForeignKey('user.id'))
     referred_id = db.Column(db.String(36), db.ForeignKey('user.id'))
-
-class GamePoints(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('user.id'))
-    points = db.Column(db.Integer, default=0)
 
 class ReferralClaim(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -133,6 +132,8 @@ def get_user(user_id):
         "last_claim": user.last_claim,
         "referral_code": user.referral_code,
         "last_referral_claim": user.last_referral_claim,
+        "cipher_solved": user.cipher_solved,
+        "next_cipher_time": user.next_cipher_time.isoformat() if user.next_cipher_time else None,
         "referrals": [{"id": ref.id, "username": ref.username} for ref in referred_users]
     })
 
@@ -147,7 +148,7 @@ def claim_tokens():
     if user.last_claim and (now - user.last_claim) < timedelta(hours=8):
         return jsonify({"message": "Cannot claim yet"}), 400
 
-    user.balance += 3500  # Add 100 tokens
+    user.balance += 3500 
     user.last_claim = now
     db.session.commit()
 
@@ -170,28 +171,26 @@ def add_referral():
 
     return jsonify({"message": "Referral added successfully"})
 
-@app.route('/game_points', methods=['POST'])
-def update_game_points():
+@app.route('/update_balance', methods=['POST'])
+def update_balance():
     user_id = request.json.get('user_id')
     points = request.json.get('points')
 
-    game_points = GamePoints.query.filter_by(user_id=user_id).first()
-    if not game_points:
-        game_points = GamePoints(user_id=user_id, points=points)
-        db.session.add(game_points)
-    else:
-        game_points.points = points
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
 
+    user.balance += points
     db.session.commit()
 
-    return jsonify({"message": "Game points updated successfully"})
+    return jsonify({"message": "Balance updated successfully", "new_balance": user.balance})
 
 @app.route('/leaderboard', methods=['GET'])
 def get_leaderboard():
-    leaderboard = GamePoints.query.order_by(GamePoints.points.desc()).limit(10).all()
+    leaderboard = User.query.order_by(User.balance.desc()).limit(10).all()
     return jsonify([
-        {"user_id": points.user_id, "points": points.points}
-        for points in leaderboard
+        {"user_id": user.id, "username": user.username, "balance": user.balance}
+        for user in leaderboard
     ])
 
 @app.route('/user/<user_id>/referrals', methods=['GET'])
@@ -242,26 +241,32 @@ def update_referral_claim_time(user_id):
     return jsonify({"message": "Referral claim time updated successfully"})
 
 @app.route('/user/<user_id>/balance', methods=['GET'])
-def get_balance(user_id):
+def get_user_balance(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": "User not found"}), 404
     return jsonify({"balance": user.balance})
 
-@app.route('/user/<user_id>/balance', methods=['PUT'])
-def update_balance(user_id):
+@app.route('/user/<user_id>/update-cipher-status', methods=['POST'])
+def update_cipher_status(user_id):
+    data = request.json
+    solved = data.get('solved')
+    next_time = data.get('next_time')
+
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": "User not found"}), 404
-    
-    new_balance = request.json.get('balance')
-    if new_balance is None:
-        return jsonify({"message": "New balance not provided"}), 400
-    
-    user.balance = new_balance
+
+    if solved is not None:
+        user.cipher_solved = solved
+
+    if next_time:
+        user.next_cipher_time = datetime.fromisoformat(next_time)
+
     db.session.commit()
-    
-    return jsonify({"message": "Balance updated successfully", "new_balance": user.balance})
+
+    return jsonify({"message": "Cipher status updated successfully"})
+
 
 @app.route('/test_db')
 def test_db():

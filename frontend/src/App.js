@@ -10,7 +10,7 @@ import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
 import SignUp from './components/SignUp';
 import './App.css';
-import { login, getUser, claimTokens, updateGamePoints, getLeaderboard } from './services/api';
+import { login, getUser, claimTokens, updateBalance, getLeaderboard } from './services/api';
 
 function App() {
     const [user, setUser] = useState(null);
@@ -87,7 +87,7 @@ function App() {
             const task = tasks.find(t => t.id === taskId);
             if (task && !task.completed) {
                 const newBalance = balance + task.reward;
-                await updateGamePoints(user.user_id, newBalance);
+                await updateBalance(user.user_id, newBalance);
                 setBalance(newBalance);
                 setTasks(prevTasks => 
                     prevTasks.map(t => 
@@ -143,7 +143,7 @@ function App() {
                             <TaskList tasks={tasks} onTaskComplete={handleTaskComplete} />
                         </>
                     )}
-                    {item === 'games' && <Games />}
+                    {item === 'games' && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}
                     {item === 'leaderboard' && <Leaderboard getLeaderboard={getLeaderboard} />}
                     {item === 'referral' && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
                 </animated.div>
