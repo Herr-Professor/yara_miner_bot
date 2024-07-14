@@ -4,12 +4,23 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const crypto = require('crypto');
+const cors = require('cors'); // Add cors package
 require('dotenv').config();
 
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
+// Conditional CORS configuration
+if (process.env.NODE_ENV === 'production') {
+    app.use(cors({
+        origin: 'https://yara-miner-bot.vercel.app',
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        allowedHeaders: 'Content-Type',
+    }));
+}
+
+// Start the server
 http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 let currentGame = null;
