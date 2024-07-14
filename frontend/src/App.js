@@ -16,11 +16,7 @@ function App() {
     const [user, setUser] = useState(null);
     const [balance, setBalance] = useState(0);
     const [nextClaimTime, setNextClaimTime] = useState(null);
-    const [tasks, setTasks] = useState([
-        { id: 1, description: 'Claim tokens 3 times', reward: 50, completed: false },
-        { id: 2, description: 'Invite 2 friends', reward: 100, completed: false },
-        { id: 3, description: 'Reach 1000 tokens', reward: 200, completed: false },
-    ]);
+    const [tasks, setTasks] = useState([]);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
 
@@ -59,7 +55,7 @@ function App() {
                 const now = new Date().getTime();
                 const timeLeft = nextClaimTime - now;
                 if (timeLeft > 0) {
-                    setMiningProgress(3500 - (timeLeft / (8 * 60 * 60 * 1000)) * 3500);
+                    setMiningProgress(Math.round(3500 - (timeLeft / (8 * 60 * 60 * 1000)) * 3500)); // Round to nearest whole number
                 } else {
                     setMiningProgress(3500);
                     clearInterval(interval);
@@ -79,27 +75,6 @@ function App() {
             toast.success('Tokens claimed successfully!');
         } catch (error) {
             toast.error('Failed to claim tokens. Please try again.');
-        }
-    };
-
-    const handleTaskComplete = async (taskId) => {
-        try {
-            const task = tasks.find(t => t.id === taskId);
-            if (task && !task.completed) {
-                const newBalance = balance + task.reward;
-                await updateBalance(user.user_id, newBalance);
-                setBalance(newBalance);
-                setTasks(prevTasks => 
-                    prevTasks.map(t => 
-                        t.id === taskId 
-                            ? { ...t, completed: true } 
-                            : t
-                    )
-                );
-                toast.success(`Task completed! You earned ${task.reward} tokens.`);
-            }
-        } catch (error) {
-            toast.error('Failed to complete task. Please try again.');
         }
     };
 
@@ -140,7 +115,7 @@ function App() {
                                     miningProgress={miningProgress}
                                 />
                             </div>
-                            <TaskList tasks={tasks} onTaskComplete={handleTaskComplete} />
+                            <TaskList />
                         </>
                     )}
                     {item === 'games' && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}

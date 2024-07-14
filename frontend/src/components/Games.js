@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Cipher from './games/Cipher';
 import Crash from './games/Crash';
-import { getUser } from '../services/api';
+import { getUser, getCipherStatus } from '../services/api';
 
 const games = [
     { id: 1, name: 'Cipher', icon: 'fa-lock', component: Cipher },
@@ -19,9 +19,11 @@ function Games({ userId }) {
     const [forceReload, setForceReload] = useState(0);
     const [userData, setUserData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [cipherStatus, setCipherStatus] = useState({ cipher_solved: false, next_cipher_time: null });
 
     useEffect(() => {
         fetchUserData();
+        fetchCipherStatus();
     }, []);
 
     const fetchUserData = async () => {
@@ -33,6 +35,29 @@ function Games({ userId }) {
             console.error('Error fetching user data:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchCipherStatus = async () => {
+        try {
+            const status = await getCipherStatus(userId);
+            setCipherStatus(status);
+        } catch (error) {
+            console.error('Error fetching cipher status:', error);
+        }
+    };
+
+    const handleCipherClick = () => {
+        const nextAvailableTime = new Date(cipherStatus.next_cipher_time);
+        const currentTime = new Date();
+        
+        if (currentTime >= nextAvailableTime) {
+            setSelectedGame(games.find(game => game.id === 1));
+        } else {
+            const hoursUntilAvailable = (nextAvailableTime - currentTime) / (1000 * 60 * 60);
+            const formattedTime = nextAvailableTime.toLocaleString([], { hour: 'numeric', minute: 'numeric' });
+            const message = `You have already solved the cipher. It will be available next at ${formattedTime} UTC.`;
+            alert(message); // Replace with a toast or snack notification component
         }
     };
 
@@ -50,7 +75,12 @@ function Games({ userId }) {
                 <GameComponent key={forceReload} userId={userId} />
             </div>
         ) : (
-            <p>Game not implemented yet.</p>
+            <div>
+                <button className="back-button" onClick={() => setSelectedGame(null)}>
+                    <i className="fas fa-arrow-left"></i> Back to Games
+                </button>
+                <p>Game not implemented yet.</p>
+            </div>
         );
     };
 
@@ -62,26 +92,16 @@ function Games({ userId }) {
         <div className="games-container">
             {!selectedGame ? (
                 <div className="games-grid">
-                    {games.map(game => {
-                        if (game.id === 1 && userData) { // Cipher game
-                            const nextAvailableTime = new Date(userData.next_cipher_time);
-                            const canSolveCipher = new Date() >= nextAvailableTime;
-                            if (!canSolveCipher) {
-                                return (
-                                    <div key={game.id} className="game-item disabled">
-                                        <i className={`fas ${game.icon}`}></i>
-                                        <span>{game.name} (Next available: {nextAvailableTime.toLocaleString()})</span>
-                                    </div>
-                                );
-                            }
-                        }
-                        return (
-                            <div key={game.id} className="game-item" onClick={() => setSelectedGame(game)}>
-                                <i className={`fas ${game.icon}`}></i>
-                                <span>{game.name}</span>
-                            </div>
-                        );
-                    })}
+                    {games.map(game => (
+                        <div 
+                            key={game.id} 
+                            className={`game-item ${game.id === 1 && cipherStatus.cipher_solved ? 'disabled' : ''}`} 
+                            onClick={game.id === 1 ? handleCipherClick : () => setSelectedGame(game)}
+                        >
+                            <i className={`fas ${game.icon}`}></i>
+                            <span>{game.name}</span>
+                        </div>
+                    ))}
                 </div>
             ) : (
                 renderGame()

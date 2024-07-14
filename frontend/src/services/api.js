@@ -164,3 +164,34 @@ export const updateBalanceDirectly = async (userId, newBalance) => {
     throw error;
   }
 };
+
+export const getCipherStatus = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/${userId}/cipher-status`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch cipher status');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching cipher status:', error);
+    throw error;
+  }
+};
+
+export const updateCipherStatus = async (userId, solved, nextTime) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/${userId}/update-cipher-status`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ solved, next_time: nextTime }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update cipher status');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error updating cipher status:', error);
+    throw error;
+  }
+};
+

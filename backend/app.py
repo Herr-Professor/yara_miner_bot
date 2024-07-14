@@ -9,7 +9,7 @@ import random
 import string
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara_miner_bot.vercel.app"]}})  # Enable CORS for all routes
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -58,14 +58,14 @@ def create_user():
     try:
         data = request.json
         app.logger.info(f"Received data: {data}")
-        
+
         if not data:
             return jsonify({"message": "No input data provided"}), 400
-        
+
         username = data.get('username')
-        
+
         app.logger.info(f"Creating user with username: {username}")
-        
+
         if not username or len(username) != 5:
             return jsonify({"message": "Username must be exactly 5 characters long"}), 400
 
@@ -99,14 +99,14 @@ def create_user():
 def login():
     data = request.json
     secret_code = data.get('secret_code')
-    
+
     if not secret_code:
         return jsonify({"message": "Secret code is required"}), 400
-    
+
     user = User.query.filter_by(secret_code=secret_code).first()
     if not user:
         return jsonify({"message": "Invalid secret code"}), 401
-    
+
     return jsonify({
         "user_id": user.id,
         "username": user.username,
@@ -148,7 +148,7 @@ def claim_tokens():
     if user.last_claim and (now - user.last_claim) < timedelta(hours=8):
         return jsonify({"message": "Cannot claim yet"}), 400
 
-    user.balance += 3500 
+    user.balance += 3500
     user.last_claim = now
     db.session.commit()
 
@@ -277,4 +277,4 @@ def test_db():
         return jsonify({"message": f"Database connection failed: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
