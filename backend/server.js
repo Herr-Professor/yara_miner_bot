@@ -1,15 +1,27 @@
+import { API_BASE_URL } from '../frontend/src/config';
+import { handleTelegramMessage } from '../frontend/src/services/api';
+
 const express = require('express');
 const mongoose = require('mongoose');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const http = require('http');
+const socketIo = require('socket.io');
 const crypto = require('crypto');
-const cors = require('cors'); // Add cors package
+const cors = require('cors');
+const axios = require('axios');
+const bodyParser = require('body-parser');
 require('dotenv').config();
 
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
 app.use(express.json());
+app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 5000;
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '7031484757:AAFxCtzFo5QiXzbO9_-tA-2wLGEasvtqxug';
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+const WEBHOOK_URL = process.env.WEBHOOK_URL || `${API_BASE_URL}/webhook`;
 
 // Conditional CORS configuration
 if (process.env.NODE_ENV === 'production') {
@@ -20,8 +32,32 @@ if (process.env.NODE_ENV === 'production') {
     }));
 }
 
-// Start the server
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Set up Telegram webhook
+axios.post(`${TELEGRAM_API}/setWebhook`, {
+    url: WEBHOOK_URL
+})
+.then(response => {
+    console.log('Webhook set:', response.data);
+})
+.catch(error => {
+    console.error('Error setting webhook:', error);
+});
+
+// Updated Webhook endpoint
+app.post('/webhook', async (req, res) => {
+    const { message } = req.body;
+    if (message) {
+        try {
+            await handleTelegramMessage(message);
+            res.sendStatus(200);
+        } catch (error) {
+            console.error('Error handling webhook:', error);
+            res.sendStatus(500);
+        }
+    } else {
+        res.sendStatus(400);
+    }
+});
 
 let currentGame = null;
 
@@ -77,3 +113,6 @@ io.on('connection', (socket) => {
 });
 
 startNewGame();
+
+// Start the server
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

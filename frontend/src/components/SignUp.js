@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createUser } from '../services/api';
 
-const SignUp = ({ onSignUp }) => {
+const SignUp = ({ onSignUp, isTelegramUser }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
@@ -22,6 +22,11 @@ const SignUp = ({ onSignUp }) => {
       setError('An error occurred. Please try again.');
     }
   };
+
+  // If user is accessing via Telegram, hide the signup form
+  if (isTelegramUser) {
+    return null; // or you can return a message or component for Telegram users
+  }
 
   return (
     <div className="sign-up">

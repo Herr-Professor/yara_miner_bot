@@ -8,7 +8,7 @@ import TaskList from './components/TaskList';
 import Games from './components/Games';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
-import SignUp from './components/SignUp';
+import SignUp from './components/SignUp'; // Import SignUp component
 import './App.css';
 import { login, getUser, claimTokens, updateBalance, getLeaderboard } from './services/api';
 
@@ -19,6 +19,7 @@ function App() {
     const [tasks, setTasks] = useState([]);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
+    const [telegramUsername, setTelegramUsername] = useState(null); // State to store Telegram username
 
     const transitions = useTransition(activeTab, {
         from: { opacity: 0, transform: 'translateY(50px)' },
@@ -27,6 +28,12 @@ function App() {
     });
 
     useEffect(() => {
+        // Check if Telegram WebApp object is available and set username if so
+        if (window.Telegram && window.Telegram.WebApp) {
+            const { username } = window.Telegram.WebApp;
+            setTelegramUsername(username);
+        }
+        
         const storedSecretCode = localStorage.getItem('secretCode');
         if (storedSecretCode) {
             loginUser(storedSecretCode);
@@ -85,7 +92,7 @@ function App() {
         { id: 'referral', icon: 'fa-user-plus', label: 'Referral' },
     ];
 
-    if (!user) {
+    if (!user && !telegramUsername) {
         return <SignUp onSignUp={handleSignUp} />;
     }
 

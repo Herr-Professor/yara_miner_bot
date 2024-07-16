@@ -1,15 +1,63 @@
 import { API_BASE_URL } from '../config';
+const axios = require('axios');
 
 const headers = {
   'Content-Type': 'application/json',
 };
 
+const TELEGRAM_TOKEN = '7031484757:AAFxCtzFo5QiXzbO9_-tA-2wLGEasvtqxug';
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+
+// Add new function to handle Telegram messages
+export const handleTelegramMessage = async (message) => {
+  const chatId = message.chat.id;
+  const username = message.from.username;
+
+  try {
+    // Store the username in the database
+    await createUser(username);
+
+    // Send a response back to the user
+    await axios.post(`${TELEGRAM_API}/sendMessage`, {
+      chat_id: chatId,
+      text: `Hello, ${username}! Welcome to our bot.`
+    });
+
+    return { success: true, message: 'User created and welcomed' };
+  } catch (error) {
+    console.error('Error handling Telegram message:', error);
+    throw error;
+  }
+};
+
+// Add a new function to check if a user exists
+export const checkUserExists = async (username) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/check/${username}`);
+    return response.json();
+  } catch (error) {
+    console.error('Error checking if user exists:', error);
+    throw error;
+  }
+};
+
+// Modify the createUser function to handle Telegram usernames
+
+
 export const createUser = async (username) => {
   try {
+    // First, check if the user already exists
+    const userExists = await checkUserExists(username);
+    
+    if (userExists.exists) {
+      return { success: true, message: 'User already exists', user: userExists.user };
+    }
+
+    // If the user doesn't exist, create a new one
     const response = await fetch(`${API_BASE_URL}/user`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, platform: 'telegram' }),
     });
     return response.json();
   } catch (error) {

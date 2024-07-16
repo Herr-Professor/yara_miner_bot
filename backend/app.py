@@ -7,18 +7,21 @@ import uuid
 import logging
 import random
 import string
+import requests
+import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara_miner_bot.vercel.app"]}})  # Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app"]}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)  # Set up Flask-Migrate
+migrate = Migrate(app, db)
 
-# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Database Models
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '7031484757:AAFxCtzFo5QiXzbO9_-tA-2wLGEasvtqxug')
+TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True)
     username = db.Column(db.String(5), unique=True, nullable=False)
@@ -27,8 +30,9 @@ class User(db.Model):
     last_claim = db.Column(db.DateTime)
     referral_code = db.Column(db.String(10), unique=True)
     last_referral_claim = db.Column(db.DateTime)
-    cipher_solved = db.Column(db.Boolean, default=False)  # New field
-    next_cipher_time = db.Column(db.DateTime)  # New field
+    cipher_solved = db.Column(db.Boolean, default=False)
+    next_cipher_time = db.Column(db.DateTime)
+    telegram_chat_id = db.Column(db.String(20), unique=True)
 
 class Referral(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,14 +49,47 @@ class ReferralClaim(db.Model):
 with app.app_context():
     db.create_all()
 
-# Helper Functions
 def generate_referral_code():
     return uuid.uuid4().hex[:8]
 
 def generate_secret_code():
     return 'yX-' + ''.join(random.choices(string.ascii_letters + string.digits, k=12))
 
-# API Routes
+def send_telegram_message(chat_id, text):
+    url = f'{TELEGRAM_API}/sendMessage'
+    data = {'chat_id': chat_id, 'text': text}
+    response = requests.post(url, json=data)
+    return response.json()
+
+@app.route('/webhook', methods=['POST'])
+def telegram_webhook():
+    update = request.json
+    if 'message' in update:
+        message = update['message']
+        chat_id = message['chat']['id']
+        username = message['from'].get('username')
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            secret_code = generate_secret_code()
+            new_user = User(
+                id=str(uuid.uuid4()),
+                username=username,
+                secret_code=secret_code,
+                referral_code=generate_referral_code(),
+                last_referral_claim=datetime.utcnow(),
+                telegram_chat_id=str(chat_id)
+            )
+            db.session.add(new_user)
+            db.session.commit()
+
+            send_telegram_message(chat_id, f"Welcome, {username}! Your secret code is: {secret_code}")
+        else:
+            send_telegram_message(chat_id, f"Welcome back, {username}!")
+
+        return jsonify({'status': 'ok'}), 200
+    return jsonify({'status': 'error'}), 400
+
 @app.route('/user', methods=['POST'])
 def create_user():
     try:
@@ -63,6 +100,7 @@ def create_user():
             return jsonify({"message": "No input data provided"}), 400
 
         username = data.get('username')
+        telegram_chat_id = data.get('telegram_chat_id')
 
         app.logger.info(f"Creating user with username: {username}")
 
@@ -79,7 +117,8 @@ def create_user():
             username=username,
             secret_code=secret_code,
             referral_code=generate_referral_code(),
-            last_referral_claim=datetime.utcnow()
+            last_referral_claim=datetime.utcnow(),
+            telegram_chat_id=telegram_chat_id
         )
         db.session.add(new_user)
         db.session.commit()
@@ -265,8 +304,13 @@ def update_cipher_status(user_id):
 
     db.session.commit()
 
-    return jsonify({"message": "Cipher status updated successfully"})
+    if user.telegram_chat_id:
+        if solved:
+            send_telegram_message(user.telegram_chat_id, "Congratulations! You've solved the cipher.")
+        else:
+            send_telegram_message(user.telegram_chat_id, f"New cipher available at: {next_time}")
 
+    return jsonify({"message": "Cipher status updated successfully"})
 
 @app.route('/test_db')
 def test_db():
