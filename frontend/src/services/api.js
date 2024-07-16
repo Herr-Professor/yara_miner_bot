@@ -5,81 +5,32 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '7031484757:AAFxCtzFo5QiXzbO9_-tA-2wLGEasvtqxug';
-const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
-
-// Add new function to handle Telegram messages
-export const handleTelegramMessage = async (message) => {
-  const chatId = message.chat.id;
-  const username = message.from.username;
-
+// New function to validate Telegram WebApp data
+export const validateTelegramWebAppData = async (initData) => {
   try {
-    // Store the username in the database
-    await createUser(username);
-
-    // Send a response back to the user
-    await axios.post(`${TELEGRAM_API}/sendMessage`, {
-      chat_id: chatId,
-      text: `Hello, ${username}! Welcome to our bot.`
-    });
-
-    return { success: true, message: 'User created and welcomed' };
-  } catch (error) {
-    console.error('Error handling Telegram message:', error);
-    throw error;
-  }
-};
-
-// Add a new function to check if a user exists
-export const checkUserExists = async (username) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/user/check/${username}`);
+    const response = await axios.post(`${API_BASE_URL}/validate-telegram-data`, { initData }, { headers });
     return response.data;
   } catch (error) {
-    console.error('Error checking if user exists:', error);
+    console.error('Error validating Telegram WebApp data:', error);
     throw error;
   }
 };
 
-// Modify the createUser function to handle Telegram usernames
-export const createUser = async (username) => {
+// Function to get user data including Telegram username
+export const getUserData = async (initData) => {
   try {
-    // First, check if the user already exists
-    const userExists = await checkUserExists(username);
-    
-    if (userExists.exists) {
-      return { success: true, message: 'User already exists', user: userExists.user };
-    }
-
-    // If the user doesn't exist, create a new one
-    const response = await axios.post(`${API_BASE_URL}/user`, {
-      username,
-      platform: 'telegram'
-    }, { headers });
-
+    const response = await axios.post(`${API_BASE_URL}/user-data`, { initData }, { headers });
     return response.data;
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Error fetching user data:', error);
     throw error;
   }
 };
 
-export const login = async (secretCode) => {
+// Modified function to get user data
+export const getUser = async (initData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/login`, {
-      secret_code: secretCode
-    }, { headers });
-
-    return response.data;
-  } catch (error) {
-    console.error('Error logging in:', error);
-    throw error;
-  }
-};
-
-export const getUser = async (userId) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/user/${userId}`);
+    const response = await axios.post(`${API_BASE_URL}/user`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -87,12 +38,10 @@ export const getUser = async (userId) => {
   }
 };
 
-export const claimTokens = async (userId) => {
+// Modified function to claim tokens
+export const claimTokens = async (initData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/claim`, {
-      user_id: userId
-    }, { headers });
-
+    const response = await axios.post(`${API_BASE_URL}/claim`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error claiming tokens:', error);
@@ -100,13 +49,13 @@ export const claimTokens = async (userId) => {
   }
 };
 
-export const addReferral = async (referrerCode, referredId) => {
+// Modified function to add referral
+export const addReferral = async (initData, referrerCode) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/referral`, {
-      referrer_code: referrerCode,
-      referred_id: referredId
+      initData,
+      referrer_code: referrerCode
     }, { headers });
-
     return response.data;
   } catch (error) {
     console.error('Error adding referral:', error);
@@ -114,13 +63,13 @@ export const addReferral = async (referrerCode, referredId) => {
   }
 };
 
-export const updateBalance = async (userId, points) => {
+// Modified function to update balance
+export const updateBalance = async (initData, points) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/update_balance`, {
-      user_id: userId,
+      initData,
       points
     }, { headers });
-
     return response.data;
   } catch (error) {
     console.error('Error updating balance:', error);
@@ -128,6 +77,7 @@ export const updateBalance = async (userId, points) => {
   }
 };
 
+// The following functions don't need user-specific data, so they remain unchanged
 export const getLeaderboard = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/leaderboard`);
@@ -138,9 +88,10 @@ export const getLeaderboard = async () => {
   }
 };
 
-export const getUserReferrals = async (userId) => {
+// Modified function to get user referrals
+export const getUserReferrals = async (initData) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/user/${userId}/referrals`);
+    const response = await axios.post(`${API_BASE_URL}/user-referrals`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error fetching user referrals:', error);
@@ -148,12 +99,10 @@ export const getUserReferrals = async (userId) => {
   }
 };
 
-export const claimReferralRewards = async (userId) => {
+// Modified function to claim referral rewards
+export const claimReferralRewards = async (initData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/user/${userId}/claim-referrals`, {
-      user_id: userId
-    }, { headers });
-
+    const response = await axios.post(`${API_BASE_URL}/claim-referrals`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error claiming referral rewards:', error);
@@ -161,12 +110,10 @@ export const claimReferralRewards = async (userId) => {
   }
 };
 
-export const updateLastReferralClaimTime = async (userId) => {
+// Modified function to update last referral claim time
+export const updateLastReferralClaimTime = async (initData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/user/${userId}/update-referral-claim-time`, {
-      user_id: userId
-    }, { headers });
-
+    const response = await axios.post(`${API_BASE_URL}/update-referral-claim-time`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error updating referral claim time:', error);
@@ -174,9 +121,10 @@ export const updateLastReferralClaimTime = async (userId) => {
   }
 };
 
-export const getBalance = async (userId) => {
+// Modified function to get balance
+export const getBalance = async (initData) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/user/${userId}/balance`);
+    const response = await axios.post(`${API_BASE_URL}/balance`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error fetching balance:', error);
@@ -184,12 +132,13 @@ export const getBalance = async (userId) => {
   }
 };
 
-export const updateBalanceDirectly = async (userId, newBalance) => {
+// Modified function to update balance directly
+export const updateBalanceDirectly = async (initData, newBalance) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/user/${userId}/balance`, {
+    const response = await axios.post(`${API_BASE_URL}/update-balance-direct`, {
+      initData,
       balance: newBalance
     }, { headers });
-
     return response.data;
   } catch (error) {
     console.error('Error updating balance:', error);
@@ -197,9 +146,10 @@ export const updateBalanceDirectly = async (userId, newBalance) => {
   }
 };
 
-export const getCipherStatus = async (userId) => {
+// Modified function to get cipher status
+export const getCipherStatus = async (initData) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/user/${userId}/cipher-status`);
+    const response = await axios.post(`${API_BASE_URL}/cipher-status`, { initData }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error fetching cipher status:', error);
@@ -207,13 +157,14 @@ export const getCipherStatus = async (userId) => {
   }
 };
 
-export const updateCipherStatus = async (userId, solved, nextTime) => {
+// Modified function to update cipher status
+export const updateCipherStatus = async (initData, solved, nextTime) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/user/${userId}/update-cipher-status`, {
+    const response = await axios.post(`${API_BASE_URL}/update-cipher-status`, {
+      initData,
       solved,
       next_time: nextTime
     }, { headers });
-
     return response.data;
   } catch (error) {
     console.error('Error updating cipher status:', error);
