@@ -116,3 +116,19 @@ startNewGame();
 
 // Start the server
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Ensure handleTelegramMessage is properly implemented
+async function handleTelegramMessage(message) {
+    const chatId = message.chat.id;
+    const username = message.from.username;
+
+    try {
+        const response = await axios.post(`${API_BASE_URL}/webhook`, {
+            chat_id: chatId,
+            username: username,
+        });
+        console.log('Telegram message handled:', response.data);
+    } catch (error) {
+        console.error('Error in handleTelegramMessage:', error);
+    }
+}

@@ -8,7 +8,6 @@ import TaskList from './components/TaskList';
 import Games from './components/Games';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
-import SignUp from './components/SignUp'; // Import SignUp component
 import './App.css';
 import { login, getUser, claimTokens, updateBalance, getLeaderboard } from './services/api';
 
@@ -30,19 +29,18 @@ function App() {
     useEffect(() => {
         // Check if Telegram WebApp object is available and set username if so
         if (window.Telegram && window.Telegram.WebApp) {
-            const { username } = window.Telegram.WebApp;
+            const { username } = window.Telegram.WebApp.initDataUnsafe.user;
             setTelegramUsername(username);
         }
         
-        const storedSecretCode = localStorage.getItem('secretCode');
-        if (storedSecretCode) {
-            loginUser(storedSecretCode);
+        if (telegramUsername) {
+            loginUser(telegramUsername);
         }
-    }, []);
+    }, [telegramUsername]);
 
-    const loginUser = async (secretCode) => {
+    const loginUser = async (username) => {
         try {
-            const userData = await login(secretCode);
+            const userData = await getUser(username); // Assuming getUser fetches user data by username
             setUser(userData);
             setBalance(userData.balance);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
@@ -51,9 +49,9 @@ function App() {
         }
     };
 
-    const handleSignUp = (userId, secretCode) => {
-        localStorage.setItem('secretCode', secretCode);
-        loginUser(secretCode);
+    const handleSignUp = (username) => {
+        localStorage.setItem('username', username);
+        loginUser(username);
     };
 
     useEffect(() => {
@@ -93,7 +91,7 @@ function App() {
     ];
 
     if (!user && !telegramUsername) {
-        return <SignUp onSignUp={handleSignUp} />;
+        return <div>Loading...</div>;
     }
 
     return (
