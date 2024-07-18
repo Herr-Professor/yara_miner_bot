@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Cipher from './games/Cipher';
 import Crash from './games/Crash';
-import { getUser, getCipherStatus } from '../services/api';
 
 const games = [
     { id: 1, name: 'Cipher', icon: 'fa-lock', component: Cipher },
@@ -17,35 +16,7 @@ const games = [
 function Games({ userId }) {
     const [selectedGame, setSelectedGame] = useState(null);
     const [forceReload, setForceReload] = useState(0);
-    const [userData, setUserData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [cipherStatus, setCipherStatus] = useState({ cipher_solved: false, next_cipher_time: null });
-
-    useEffect(() => {
-        fetchUserData();
-        fetchCipherStatus();
-    }, []);
-
-    const fetchUserData = async () => {
-        setIsLoading(true);
-        try {
-            const userData = await getUser(userId);
-            setUserData(userData);
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const fetchCipherStatus = async () => {
-        try {
-            const status = await getCipherStatus(userId);
-            setCipherStatus(status);
-        } catch (error) {
-            console.error('Error fetching cipher status:', error);
-        }
-    };
+    const [cipherStatus, setCipherStatus] = useState({ cipher_solved: false, next_cipher_time: new Date().getTime() + 24 * 60 * 60 * 1000 });
 
     const handleCipherClick = () => {
         const nextAvailableTime = new Date(cipherStatus.next_cipher_time);
@@ -54,7 +25,6 @@ function Games({ userId }) {
         if (currentTime >= nextAvailableTime) {
             setSelectedGame(games.find(game => game.id === 1));
         } else {
-            const hoursUntilAvailable = (nextAvailableTime - currentTime) / (1000 * 60 * 60);
             const formattedTime = nextAvailableTime.toLocaleString([], { hour: 'numeric', minute: 'numeric' });
             const message = `You have already solved the cipher. It will be available next at ${formattedTime} UTC.`;
             alert(message); // Replace with a toast or snack notification component
@@ -83,10 +53,6 @@ function Games({ userId }) {
             </div>
         );
     };
-
-    if (isLoading) {
-        return <div>Loading...</div>;
-    }
 
     return (
         <div className="games-container">

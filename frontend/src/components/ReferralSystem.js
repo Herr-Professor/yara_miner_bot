@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { getUser, getUserReferrals, claimReferralRewards, updateLastReferralClaimTime } from '../services/api';
 
 function ReferralSystem({ userId, balance, setBalance }) {
-    const [referralCode, setReferralCode] = useState('');
-    const [lastClaimTime, setLastClaimTime] = useState(null);
-    const [canClaim, setCanClaim] = useState(true);
+    const [referralCode, setReferralCode] = useState('REF123456');
+    const [lastClaimTime, setLastClaimTime] = useState(new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString());
+    const [canClaim, setCanClaim] = useState(false);
     const [timeUntilNextClaim, setTimeUntilNextClaim] = useState(0);
-    const [referrals, setReferrals] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        fetchUserData();
-    }, [userId]);
+    const [referrals, setReferrals] = useState([
+        { id: 1, username: 'User1', balance: 1000 },
+        { id: 2, username: 'User2', balance: 1500 },
+        { id: 3, username: 'User3', balance: 2000 },
+    ]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -32,47 +30,19 @@ function ReferralSystem({ userId, balance, setBalance }) {
         return () => clearInterval(timer);
     }, [lastClaimTime]);
 
-    const fetchUserData = async () => {
-        setIsLoading(true);
-        try {
-            const userData = await getUser(userId);
-            setReferralCode(userData.referral_code);
-            setLastClaimTime(userData.last_referral_claim);
-            
-            const referralsData = await getUserReferrals(userId);
-            setReferrals(referralsData);
-        } catch (error) {
-            toast.error('Failed to fetch user data. Please try again.');
-            console.error('Error fetching user data:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const copyToClipboard = () => {
         navigator.clipboard.writeText(referralCode);
         toast.success('Referral code copied to clipboard!');
     };
 
-    const claimAll = async () => {
+    const claimAll = () => {
         if (canClaim && referrals.length > 0) {
-            try {
-                const result = await claimReferralRewards(userId);
-                if (result.message === "Referral rewards claimed successfully") {
-                    const newBalance = balance + result.reward;
-                    setBalance(newBalance);
-                    setLastClaimTime(new Date().toISOString());
-                    setCanClaim(false);
-                    toast.success(`Claimed ${result.reward} YARA from ${referrals.length} referrals!`);
-                    await updateLastReferralClaimTime(userId);
-                    fetchUserData(); // Refresh user data after claiming
-                } else {
-                    toast.warning(result.message);
-                }
-            } catch (error) {
-                toast.error('Failed to claim rewards. Please try again.');
-                console.error('Error claiming rewards:', error);
-            }
+            const reward = referrals.reduce((sum, referral) => sum + referral.balance * 0.25, 0);
+            const newBalance = balance + reward;
+            setBalance(newBalance);
+            setLastClaimTime(new Date().toISOString());
+            setCanClaim(false);
+            toast.success(`Claimed ${reward} YARA from ${referrals.length} referrals!`);
         } else if (!canClaim) {
             toast.warning('You need to wait before claiming again.');
         } else {
@@ -86,10 +56,6 @@ function ReferralSystem({ userId, balance, setBalance }) {
         const seconds = Math.floor((ms % (60 * 1000)) / 1000);
         return `${hours}h ${minutes}m ${seconds}s`;
     };
-
-    if (isLoading) {
-        return <div>Loading referral data...</div>;
-    }
 
     return (
         <div className="referral-system">

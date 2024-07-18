@@ -1,33 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { updateBalance, getUser } from '../../services/api';
 
-const Cipher = ({ userId }) => {
+const Cipher = ({ userId, initialBalance = 1000 }) => {
     const [inputs, setInputs] = useState(Array(9).fill(''));
     const [message, setMessage] = useState('');
     const [reward, setReward] = useState(1000);
     const [solved, setSolved] = useState(false);
-    const [balance, setBalance] = useState(null);
+    const [balance, setBalance] = useState(initialBalance);
     const [nextAvailableTime, setNextAvailableTime] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const fetchUserData = async () => {
-        setIsLoading(true);
-        try {
-            const userData = await getUser(userId);
-            setBalance(userData.balance);
-            setSolved(userData.cipher_solved);
-            setNextAvailableTime(userData.next_cipher_time);
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-            setMessage('Failed to fetch user data. Please try again later.');
-        } finally {
-            setIsLoading(false);
+        // Simulate fetching user data
+        const now = new Date();
+        if (now.getUTCHours() >= 12) {
+            now.setDate(now.getDate() + 1);
         }
-    };
+        now.setUTCHours(12, 0, 0, 0);
+        setNextAvailableTime(now.toISOString());
+    }, []);
 
     const handleInputChange = (index, value) => {
         const newInputs = [...inputs];
@@ -35,7 +24,7 @@ const Cipher = ({ userId }) => {
         setInputs(newInputs);
     };
 
-    const checkSolution = async () => {
+    const checkSolution = () => {
         if (solved) {
             setMessage("You've already solved this cipher. Wait for the next one.");
             return;
@@ -43,27 +32,17 @@ const Cipher = ({ userId }) => {
 
         const solution = inputs.join('');
         if (solution === 'HELLWORLD') {
-            try {
-                const now = new Date().toISOString();
-                const nextTime = new Date();
-                nextTime.setUTCHours(12, 0, 0, 0); // Set next available time to 12:00 UTC
-                if (nextTime <= new Date()) {
-                    nextTime.setDate(nextTime.getDate() + 1);
-                }
-                const nextAvailableTimeISO = nextTime.toISOString();
-                const result = await updateBalance(userId, reward, now, nextAvailableTimeISO);
-                if (result && result.new_balance !== undefined) {
-                    setBalance(result.new_balance);
-                    setMessage(`Congratulations! You solved the cipher and earned ${reward} YARA! Your new balance is ${result.new_balance} YARA.`);
-                    setSolved(true);
-                    setNextAvailableTime(nextAvailableTimeISO);
-                } else {
-                    throw new Error('Invalid response from server');
-                }
-            } catch (error) {
-                console.error('Error updating balance:', error);
-                setMessage('You solved the cipher, but there was an error updating your balance. Please try again.');
+            const newBalance = balance + reward;
+            setBalance(newBalance);
+            setMessage(`Congratulations! You solved the cipher and earned ${reward} YARA! Your new balance is ${newBalance} YARA.`);
+            setSolved(true);
+            
+            const nextTime = new Date();
+            nextTime.setUTCHours(12, 0, 0, 0);
+            if (nextTime <= new Date()) {
+                nextTime.setDate(nextTime.getDate() + 1);
             }
+            setNextAvailableTime(nextTime.toISOString());
         } else {
             setMessage("Sorry, that's not correct. Try again!");
         }
@@ -71,16 +50,12 @@ const Cipher = ({ userId }) => {
 
     const canSolveCipher = nextAvailableTime ? new Date() >= new Date(nextAvailableTime) : true;
 
-    if (isLoading) {
-        return <div>Loading...</div>;
-    }
-
     return (
         <div className="cipher-game">
             <h2>Cipher Game</h2>
             <p>Instructions: Solve the cipher presented. Enter your solution below.</p>
             <p>Total reward for correct solution: {reward} YARA</p>
-            <p>Your current balance: {balance !== null ? `${balance} YARA` : 'Loading...'}</p>
+            <p>Your current balance: {balance} YARA</p>
             {solved ? (
                 <div>
                     <p>You have already solved this cipher. Please come back at 12:00 UTC for the next one.</p>

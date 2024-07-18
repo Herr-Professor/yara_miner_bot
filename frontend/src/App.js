@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useTransition, animated } from 'react-spring';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,60 +9,35 @@ import Games from './components/Games';
 import Username from './components/Username';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
+import { TelegramContext } from './TelegramContext';
 import './App.css';
-import { getUser, claimTokens, updateBalance, getLeaderboard } from './services/api';
 
 function App() {
-    const [user, setUser] = useState(null);
-    const [username, setUsername] = useState('');
-    const [balance, setBalance] = useState(0);
-    const [nextClaimTime, setNextClaimTime] = useState(null);
-    const [tasks, setTasks] = useState([]);
+    const { telegramUser } = useContext(TelegramContext);
+
+    // Use telegramUser.username instead of a separate state
+    const username = telegramUser ? telegramUser.username : 'Unknown';
+    const [user, setUser] = useState({ user_id: telegramUser ? telegramUser.id : '123', balance: 1000 });
+    const [balance, setBalance] = useState(1000);
+    const [nextClaimTime, setNextClaimTime] = useState(new Date().getTime() + 8 * 60 * 60 * 1000);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
-    const [theme, setTheme] = useState({});
+    
+    const tg = window.Telegram.WebApp;
+    const theme = {
+        bg_color: tg.bgColor,
+        text_color: tg.textColor,
+        hint_color: tg.hintColor,
+        link_color: tg.linkColor,
+        button_color: tg.buttonColor,
+        button_text_color: tg.buttonTextColor,
+    };
 
     const transitions = useTransition(activeTab, {
         from: { opacity: 0, transform: 'translateY(50px)' },
         enter: { opacity: 1, transform: 'translateY(0px)' },
         leave: { opacity: 0, transform: 'translateY(50px)' },
     });
-
-    useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const fetchUserData = async () => {
-        try {
-            const initData = window.Telegram.WebApp.initData;
-            const userData = await getUserData(initData);
-            setUser(userData);
-            setBalance(userData.balance);
-            setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
-        } catch (error) {
-            console.error('Failed to fetch user data:', error);
-        }
-    };
-
-    const handleClaim = async () => {
-        try {
-            const initData = window.Telegram.WebApp.initData;
-            const response = await claimTokens(initData);
-            setBalance(response.new_balance);
-            setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
-            setMiningProgress(0);
-            toast.success('Tokens claimed successfully!');
-        } catch (error) {
-            toast.error('Failed to claim tokens. Please try again.');
-        }
-    };
-
-    const handleViewportChange = ({ isStateStable }) => {
-        // Adjust UI based on viewport changes if needed
-        if (isStateStable) {
-            // Viewport has finished changing
-        }
-    };
 
     useEffect(() => {
         if (nextClaimTime) {
@@ -81,17 +56,36 @@ function App() {
         }
     }, [nextClaimTime]);
 
-    const handleClaim = async () => {
+    const handleClaim = () => {
+        setBalance(prevBalance => prevBalance + 100);
+        setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
+        setMiningProgress(0);
+        toast.success('Tokens claimed successfully!');
+    };
+
+    /*
+    const fetchUserData = async () => {
         try {
-            const response = await claimTokens(user.user_id);
-            setBalance(response.new_balance);
-            setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
-            setMiningProgress(0);
-            toast.success('Tokens claimed successfully!');
+            const userData = await getUserData(telegramUser.id);
+            setUser(userData);
+            setBalance(userData.balance);
+            setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
         } catch (error) {
-            toast.error('Failed to claim tokens. Please try again.');
+            console.error('Failed to fetch user data:', error);
         }
     };
+    */
+
+    useEffect(() => {
+        const tg = window.Telegram.WebApp;
+        tg.BackButton.show();
+        tg.BackButton.onClick(() => {
+            // Handle back button click
+        });
+        return () => {
+            tg.BackButton.hide();
+        };
+    }, []);
 
     const tabs = [
         { id: 'main', icon: 'fa-home', label: 'Main' },
@@ -99,10 +93,6 @@ function App() {
         { id: 'leaderboard', icon: 'fa-trophy', label: 'Leaderboard' },
         { id: 'referral', icon: 'fa-user-plus', label: 'Referral' },
     ];
-
-    if (!user) {
-        return <div>Loading...</div>;
-    }
 
     return (
         <div className="App" style={{
@@ -113,14 +103,7 @@ function App() {
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
-                        onClick={() => {
-                            setActiveTab(tab.id);
-                            if (tab.id !== 'main') {
-                                window.Telegram.WebApp.BackButton.show();
-                            } else {
-                                window.Telegram.WebApp.BackButton.hide();
-                            }
-                        }}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
                         style={{
                             backgroundColor: theme.button_color,
@@ -149,7 +132,7 @@ function App() {
                     </>
                     )}
                     {item === 'games' && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}
-                    {item === 'leaderboard' && <Leaderboard getLeaderboard={getLeaderboard} />}
+                    {item === 'leaderboard' && <Leaderboard />}
                     {item === 'referral' && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
                 </animated.div>
             ))}

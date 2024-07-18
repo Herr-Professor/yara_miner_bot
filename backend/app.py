@@ -23,8 +23,8 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '7031484757:AAFxCtzFo5QiXzbO9_
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 class User(db.Model):
-    id = db.Column(db.String(36), primary_key=True)
-    username = db.Column(db.String(5), unique=True, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     secret_code = db.Column(db.String(15), unique=True, nullable=False)
     balance = db.Column(db.Float, default=0)
     last_claim = db.Column(db.DateTime)
@@ -133,6 +133,30 @@ def create_user():
         app.logger.error(f"Error creating user: {str(e)}")
         db.session.rollback()
         return jsonify({"message": f"Failed to create user: {str(e)}"}), 500
+
+@app.route('/store_username', methods=['POST'])
+def store_username():
+    data = request.json
+    username = data.get('username')
+
+    if not username or not is_valid_username(username):
+        return jsonify({"status": "error", "message": "Invalid username"}), 400
+
+    try:
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            logging.info(f"Username already exists: {username}")
+            return jsonify({"status": "success", "message": "Username already stored"}), 200
+
+        new_user = User(username=username)
+        db.session.add(new_user)
+        db.session.commit()
+        logging.info(f"Stored new username: {username}")
+        return jsonify({"status": "success", "message": "Username stored"}), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error storing username: {str(e)}")
+        return jsonify({"status": "error", "message": "An error occurred while storing the username"}), 500
 
 @app.route('/login', methods=['POST'])
 def login():

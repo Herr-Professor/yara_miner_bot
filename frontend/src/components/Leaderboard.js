@@ -1,31 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { getLeaderboard } from '../services/api';
-import { toast } from 'react-toastify';
+import React from 'react';
 
 function Leaderboard() {
-    const [leaders, setLeaders] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        fetchLeaderboard();
-    }, []);
-
-    const fetchLeaderboard = async () => {
-        setIsLoading(true);
-        try {
-            const leaderboardData = await getLeaderboard();
-            setLeaders(leaderboardData);
-        } catch (error) {
-            console.error('Error fetching leaderboard:', error);
-            toast.error('Failed to fetch leaderboard. Please try again later.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (isLoading) {
-        return <div>Loading leaderboard...</div>;
-    }
+    // Mock data for the leaderboard
+    const leaders = [
+        { username: 'Player1', balance: 10000 },
+        { username: 'Player2', balance: 9500 },
+        { username: 'Player3', balance: 9000 },
+        { username: 'Player4', balance: 8500 },
+        { username: 'Player5', balance: 8000 },
+        { username: 'Player6', balance: 7500 },
+        { username: 'Player7', balance: 7000 },
+        { username: 'Player8', balance: 6500 },
+        { username: 'Player9', balance: 6000 },
+        { username: 'Player10', balance: 5500 },
+    ];
 
     return (
         <div className="leaderboard">

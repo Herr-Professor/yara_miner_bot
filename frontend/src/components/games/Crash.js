@@ -1,9 +1,7 @@
-// src/components/games/Crash.js
 import React, { useState, useEffect, useRef } from 'react';
-import { getBalance, updateBalance } from '../../services/api';
 
-const Crash = ({ userId }) => {
-    const [balance, setBalance] = useState(0);
+const Crash = ({ initialBalance = 1000 }) => {
+    const [balance, setBalance] = useState(initialBalance);
     const [betAmount, setBetAmount] = useState('');
     const [multiplier, setMultiplier] = useState(1);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -14,19 +12,6 @@ const Crash = ({ userId }) => {
 
     const intervalRef = useRef(null);
     const crashPointRef = useRef(null);
-
-    useEffect(() => {
-        fetchBalance();
-    }, []);
-
-    const fetchBalance = async () => {
-        try {
-            const userBalance = await getBalance(userId);
-            setBalance(userBalance);
-        } catch (error) {
-            setError('Failed to fetch balance. Please try again.');
-        }
-    };
 
     const handleBetChange = (e) => {
         const value = e.target.value;
@@ -62,12 +47,10 @@ const Crash = ({ userId }) => {
     };
 
     const generateCrashPoint = () => {
-        // This is a simple random generation. In a real game, this should be done server-side
-        // and verified to ensure fairness and prevent cheating.
         return Math.floor(Math.random() * 5) + 1.5;
     };
 
-    const cashout = async () => {
+    const cashout = () => {
         if (!isPlaying || isCrashed) return;
 
         clearInterval(intervalRef.current);
@@ -75,19 +58,15 @@ const Crash = ({ userId }) => {
         setCashoutMultiplier(multiplier);
 
         const winAmount = parseFloat(betAmount) * multiplier;
-        try {
-            await updateBalance(userId, balance + winAmount - parseFloat(betAmount));
-            setBalance((prev) => prev + winAmount - parseFloat(betAmount));
-            setGameHistory((prev) => [...prev, { multiplier, bet: betAmount, win: winAmount }]);
-        } catch (error) {
-            setError('Failed to update balance. Please contact support.');
-        }
+        setBalance((prev) => prev + winAmount - parseFloat(betAmount));
+        setGameHistory((prev) => [...prev, { multiplier, bet: betAmount, win: winAmount }]);
     };
 
     const endGame = () => {
         clearInterval(intervalRef.current);
         setIsPlaying(false);
         setIsCrashed(true);
+        setBalance((prev) => prev - parseFloat(betAmount));
         setGameHistory((prev) => [...prev, { multiplier: crashPointRef.current, bet: betAmount, win: 0 }]);
     };
 
