@@ -63,7 +63,6 @@ function App() {
         toast.success('Tokens claimed successfully!');
     };
 
-    /*
     const fetchUserData = async () => {
         try {
             const userData = await getUserData(telegramUser.id);
@@ -74,7 +73,6 @@ function App() {
             console.error('Failed to fetch user data:', error);
         }
     };
-    */
 
     useEffect(() => {
         const tg = window.Telegram.WebApp;
