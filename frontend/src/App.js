@@ -9,7 +9,7 @@ import Games from './components/Games';
 import Username from './components/Username';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
-import { TelegramContext } from './TelegramContext';
+import { TelegramContext } from './context/TelegramContext';
 import './App.css';
 
 function App() {
