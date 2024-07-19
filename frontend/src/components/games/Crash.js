@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
 
-const Crash = ({ initialBalance = 1000 }) => {
-    const [balance, setBalance] = useState(initialBalance);
+const Crash = ({ userId, onBalanceUpdate }) => {
+    const [balance, setBalance] = useState(0);
     const [betAmount, setBetAmount] = useState('');
     const [multiplier, setMultiplier] = useState(1);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -9,9 +10,31 @@ const Crash = ({ initialBalance = 1000 }) => {
     const [cashoutMultiplier, setCashoutMultiplier] = useState(null);
     const [error, setError] = useState('');
     const [gameHistory, setGameHistory] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const intervalRef = useRef(null);
     const crashPointRef = useRef(null);
+
+    useEffect(() => {
+        fetchUserBalance();
+    }, [userId]);
+
+    const fetchUserBalance = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch user balance');
+            }
+            const userData = await response.json();
+            setBalance(userData.balance);
+        } catch (error) {
+            console.error('Failed to fetch user balance:', error);
+            toast.error('Failed to fetch user balance. Please try again later.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleBetChange = (e) => {
         const value = e.target.value;
@@ -50,30 +73,87 @@ const Crash = ({ initialBalance = 1000 }) => {
         return Math.floor(Math.random() * 5) + 1.5;
     };
 
-    const cashout = () => {
+    const cashout = async () => {
         if (!isPlaying || isCrashed) return;
-
+    
         clearInterval(intervalRef.current);
         setIsPlaying(false);
         setCashoutMultiplier(multiplier);
-
+    
         const winAmount = parseFloat(betAmount) * multiplier;
-        setBalance((prev) => prev + winAmount - parseFloat(betAmount));
-        setGameHistory((prev) => [...prev, { multiplier, bet: betAmount, win: winAmount }]);
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, amount: winAmount - parseFloat(betAmount) }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update balance');
+            }
+            const data = await response.json();
+            setBalance(data.new_balance);
+            onBalanceUpdate(data.new_balance);
+            setGameHistory((prev) => [...prev, { multiplier, bet: betAmount, win: winAmount }]);
+            toast.success(`You won ${(winAmount - parseFloat(betAmount)).toFixed(2)} YARA!`);
+        } catch (error) {
+            console.error('Failed to update balance:', error);
+            toast.error('Failed to update balance. Please try again later.');
+        }
     };
-
-    const endGame = () => {
+    
+    const endGame = async () => {
         clearInterval(intervalRef.current);
         setIsPlaying(false);
         setIsCrashed(true);
-        setBalance((prev) => prev - parseFloat(betAmount));
-        setGameHistory((prev) => [...prev, { multiplier: crashPointRef.current, bet: betAmount, win: 0 }]);
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, amount: -parseFloat(betAmount) }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update balance');
+            }
+            const data = await response.json();
+            setBalance(data.new_balance);
+            onBalanceUpdate(data.new_balance);
+            setGameHistory((prev) => [...prev, { multiplier: crashPointRef.current, bet: betAmount, win: 0 }]);
+            toast.error(`You lost ${betAmount} YARA!`);
+        } catch (error) {
+            console.error('Failed to update balance:', error);
+            toast.error('Failed to update balance. Please try again later.');
+        }
     };
+
+    const endGame = async () => {
+        clearInterval(intervalRef.current);
+        setIsPlaying(false);
+        setIsCrashed(true);
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, amount: -parseFloat(betAmount) }),
+            });
+            const data = await response.json();
+            setBalance(data.new_balance);
+            onBalanceUpdate(data.new_balance);
+            setGameHistory((prev) => [...prev, { multiplier: crashPointRef.current, bet: betAmount, win: 0 }]);
+            toast.error(`You lost ${betAmount} YARA!`);
+        } catch (error) {
+            console.error('Failed to update balance:', error);
+            toast.error('Failed to update balance');
+        }
+    };
+
+    if (isLoading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div className="crash-game">
             <h2>Crash Game</h2>
-            <p>Balance: {balance.toFixed(2)}</p>
+            <p>Balance: {balance.toFixed(2)} YARA</p>
             <div className="bet-controls">
                 <input
                     type="text"
@@ -96,7 +176,7 @@ const Crash = ({ initialBalance = 1000 }) => {
                 {cashoutMultiplier && (
                     <p className="cashout-message">
                         Cashed out at {cashoutMultiplier.toFixed(2)}x! 
-                        Won: {(parseFloat(betAmount) * cashoutMultiplier - parseFloat(betAmount)).toFixed(2)}
+                        Won: {(parseFloat(betAmount) * cashoutMultiplier - parseFloat(betAmount)).toFixed(2)} YARA
                     </p>
                 )}
             </div>
@@ -105,7 +185,7 @@ const Crash = ({ initialBalance = 1000 }) => {
                 <ul>
                     {gameHistory.map((game, index) => (
                         <li key={index}>
-                            {game.multiplier.toFixed(2)}x - Bet: {game.bet}, Win: {game.win.toFixed(2)}
+                            {game.multiplier.toFixed(2)}x - Bet: {game.bet} YARA, Win: {game.win.toFixed(2)} YARA
                         </li>
                     ))}
                 </ul>

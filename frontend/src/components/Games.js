@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Cipher from './games/Cipher';
 import Crash from './games/Crash';
 
@@ -18,6 +20,7 @@ function Games({ userId, onBalanceUpdate }) {
     const [forceReload, setForceReload] = useState(0);
     const [cipherStatus, setCipherStatus] = useState({ solved: false, nextAvailableTime: null });
     const [timeLeft, setTimeLeft] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (selectedGame && selectedGame.id === 1) {
@@ -47,8 +50,12 @@ function Games({ userId, onBalanceUpdate }) {
     }, [cipherStatus.nextAvailableTime]);
 
     const fetchCipherStatus = async () => {
+        setIsLoading(true);
         try {
             const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch cipher status');
+            }
             const userData = await response.json();
             setCipherStatus({
                 solved: userData.cipher_solved,
@@ -56,6 +63,9 @@ function Games({ userId, onBalanceUpdate }) {
             });
         } catch (error) {
             console.error('Failed to fetch cipher status:', error);
+            toast.error('Failed to fetch cipher status. Please try again later.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -72,7 +82,7 @@ function Games({ userId, onBalanceUpdate }) {
             <div className="selected-game">
                 <button className="back-button" onClick={() => { 
                     setSelectedGame(null); 
-                    setForceReload(forceReload + 1);
+                    setForceReload(prevState => prevState + 1);
                 }}>
                     <i className="fas fa-arrow-left"></i> Back to Games
                 </button>
@@ -80,7 +90,7 @@ function Games({ userId, onBalanceUpdate }) {
                     key={forceReload} 
                     userId={userId} 
                     onBalanceUpdate={onBalanceUpdate}
-                    onGameComplete={fetchCipherStatus}
+                    onGameComplete={selectedGame.id === 1 ? fetchCipherStatus : undefined}
                 />
             </div>
         ) : (
@@ -95,7 +105,10 @@ function Games({ userId, onBalanceUpdate }) {
 
     return (
         <div className="games-container">
-            {!selectedGame ? (
+            <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+            {isLoading ? (
+                <div className="loading">Loading...</div>
+            ) : !selectedGame ? (
                 <div className="games-grid">
                     {games.map(game => (
                         <div key={game.id} className="game-item">

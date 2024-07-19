@@ -1,19 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 
 function Leaderboard() {
-    // Mock data for the leaderboard
-    const leaders = [
-        { username: 'Player1', balance: 10000 },
-        { username: 'Player2', balance: 9500 },
-        { username: 'Player3', balance: 9000 },
-        { username: 'Player4', balance: 8500 },
-        { username: 'Player5', balance: 8000 },
-        { username: 'Player6', balance: 7500 },
-        { username: 'Player7', balance: 7000 },
-        { username: 'Player8', balance: 6500 },
-        { username: 'Player9', balance: 6000 },
-        { username: 'Player10', balance: 5500 },
-    ];
+    const [leaders, setLeaders] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchLeaderboard();
+    }, []);
+
+    const fetchLeaderboard = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/leaderboard');
+            if (!response.ok) {
+                throw new Error('Failed to fetch leaderboard data');
+            }
+            const data = await response.json();
+            setLeaders(data);
+        } catch (error) {
+            console.error('Error fetching leaderboard:', error);
+            toast.error('Failed to load leaderboard. Please try again later.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isLoading) {
+        return <div className="loading">Loading leaderboard...</div>;
+    }
 
     return (
         <div className="leaderboard">
@@ -26,7 +41,7 @@ function Leaderboard() {
                             <span className="player-name">
                                 {leader.username ? ` ${leader.username}` : 'Unknown'}
                             </span>
-                            <span className="player-balance">{leader.balance} YARA</span>
+                            <span className="player-balance">{leader.balance.toFixed(2)} YARA</span>
                         </li>
                     ))}
                 </ul>
