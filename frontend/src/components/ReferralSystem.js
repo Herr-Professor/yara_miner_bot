@@ -34,7 +34,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
     const fetchReferralData = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/api/referrals/${userId}`);
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/referrals/${userId}`);
             const data = await response.json();
             setReferralCode(data.referral_code);
             setLastClaimTime(data.last_claim_time);
@@ -55,7 +55,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
     const claimAll = async () => {
         if (canClaim && referrals.length > 0) {
             try {
-                const response = await fetch('http://localhost:5000/api/claim_referrals', {
+                const response = await fetch('https://herrprofessor.pythonanywhere.com/claim_referrals', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

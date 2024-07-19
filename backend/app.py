@@ -3,13 +3,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
-
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app"]}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -101,17 +97,6 @@ def get_referrals(user_id):
         ])
     return jsonify({'error': 'User not found'}), 404
 
-@app.route('/api/referrals/<user_id>', methods=['GET'])
-def get_referrals(user_id):
-    user = User.query.filter_by(user_id=user_id).first()
-    if user:
-        referrals = User.query.join(Referral, Referral.referred_id == User.id).filter(Referral.referrer_id == user.id).all()
-        return jsonify([
-            {'username': referral.username, 'balance': referral.balance, 'claimed': Referral.query.filter_by(referrer_id=user.id, referred_id=referral.id).first().claimed}
-            for referral in referrals
-        ])
-    return jsonify({'error': 'User not found'}), 404
-
 @app.route('/api/claim_referrals', methods=['POST'])
 def claim_referral_rewards():
     data = request.json
@@ -120,14 +105,14 @@ def claim_referral_rewards():
         if user.last_referral_claim is None or datetime.utcnow() - user.last_referral_claim >= timedelta(days=1):
             unclaimed_referrals = Referral.query.filter_by(referrer_id=user.id, claimed=False).all()
             reward = len(unclaimed_referrals) * 50  # 50 tokens per unclaimed referral
-            
+
             if reward > 0:
                 user.balance += reward
                 user.last_referral_claim = datetime.utcnow()
-                
+
                 for referral in unclaimed_referrals:
                     referral.claimed = True
-                
+
                 db.session.commit()
                 return jsonify({'success': True, 'new_balance': user.balance, 'reward': reward})
             else:
@@ -137,4 +122,4 @@ def claim_referral_rewards():
     return jsonify({'error': 'User not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

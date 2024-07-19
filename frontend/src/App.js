@@ -57,7 +57,7 @@ function App() {
 
     const handleClaim = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/claim', {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/claim', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ function App() {
 
     const fetchUserData = async () => {
         try {
-            const response = await fetch(`http://localhost:5000/api/user/${telegramUser.id}`);
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${telegramUser.id}`);
             const userData = await response.json();
             setUser(userData);
             setBalance(userData.balance);

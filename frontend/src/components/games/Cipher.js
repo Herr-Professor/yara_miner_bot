@@ -16,7 +16,7 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
     const fetchCipherStatus = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/api/user/${userId}`);
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
             const userData = await response.json();
             setSolved(userData.cipher_solved);
             setNextAvailableTime(userData.next_cipher_time);
@@ -43,7 +43,7 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
         const solution = inputs.join('');
         setIsLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/solve_cipher', {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/solve_cipher', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
