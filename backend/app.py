@@ -143,8 +143,14 @@ def get_referrals(user_id):
     if user:
         referrals = User.query.join(Referral, Referral.referred_id == User.id).filter(Referral.referrer_id == user.id).all()
         claimable_amount = calculate_claimable_amount(user)
+        
+        # Generate Telegram-specific referral link
+        telegram_bot_username = "yara_miner_bot"  # Replace with your actual bot username
+        referral_link = f"https://t.me/{telegram_bot_username}?start={user.referral_code}"
+        
         return jsonify({
-            'referral_link': f"https://your-app-url.com/register?ref={user.referral_code}",
+            'referral_code': user.referral_code,
+            'referral_link': referral_link,
             'last_claim_time': user.last_referral_claim.isoformat() if user.last_referral_claim else None,
             'claimable_amount': claimable_amount,
             'referrals': [

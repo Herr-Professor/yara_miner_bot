@@ -78,15 +78,32 @@ function Games({ userId, onBalanceUpdate }) {
         }
     };
 
+    const fetchUserBalance = async () => {
+        try {
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch user balance');
+            }
+            const userData = await response.json();
+            onBalanceUpdate(userData.balance);
+        } catch (error) {
+            console.error('Failed to fetch user balance:', error);
+            toast.error('Failed to fetch user balance. Please try again later.');
+        }
+    };
+
+    const handleGameExit = () => {
+        setSelectedGame(null);
+        setForceReload(prevState => prevState + 1);
+        fetchUserBalance();
+    };
+
     const renderGame = () => {
         if (!selectedGame) return null;
         const GameComponent = selectedGame.component;
         return GameComponent ? (
             <div className="selected-game">
-                <button className="back-button" onClick={() => { 
-                    setSelectedGame(null); 
-                    setForceReload(prevState => prevState + 1);
-                }}>
+                <button className="back-button" onClick={handleGameExit}>
                     <i className="fas fa-arrow-left"></i> Back to Games
                 </button>
                 <GameComponent 
@@ -98,7 +115,7 @@ function Games({ userId, onBalanceUpdate }) {
             </div>
         ) : (
             <div>
-                <button className="back-button" onClick={() => setSelectedGame(null)}>
+                <button className="back-button" onClick={handleGameExit}>
                     <i className="fas fa-arrow-left"></i> Back to Games
                 </button>
                 <p>Game not implemented yet.</p>
@@ -123,10 +140,10 @@ function Games({ userId, onBalanceUpdate }) {
                                         onClick={handlePlayCipher}
                                         disabled={cipherStatus.solved || (cipherStatus.nextAvailableTime && new Date() < new Date(cipherStatus.nextAvailableTime))}
                                     >
-                                        <p> {timeLeft}</p>
+                                        Play
                                     </button>
                                     {cipherStatus.solved ? (
-                                        <p> {timeLeft}</p>
+                                        <p>Next available: {timeLeft}</p>
                                     ) : (
                                         <p>{timeLeft}</p>
                                     )}

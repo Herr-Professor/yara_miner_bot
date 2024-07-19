@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
+import './Snake.css';
 
 const GRID_SIZE = 20;
-const CELL_SIZE = 20;
 const INITIAL_SNAKE = [{ x: 10, y: 10 }];
 const INITIAL_DIRECTION = { x: 1, y: 0 };
 const INITIAL_SPEED = 200;
@@ -20,11 +20,13 @@ const Snake = ({ userId, onBalanceUpdate }) => {
     const [speed, setSpeed] = useState(INITIAL_SPEED);
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedTokens, setEarnedTokens] = useState(0);
+    const [cellSize, setCellSize] = useState(20);
+    const gameboardRef = useRef(null);
 
-    const generateRandomPosition = () => ({
+    const generateRandomPosition = useCallback(() => ({
         x: Math.floor(Math.random() * GRID_SIZE),
         y: Math.floor(Math.random() * GRID_SIZE),
-    });
+    }), []);
 
     const generateFood = useCallback(() => {
         let newFood;
@@ -35,7 +37,7 @@ const Snake = ({ userId, onBalanceUpdate }) => {
             obstacles.some(obstacle => obstacle.x === newFood.x && obstacle.y === newFood.y)
         );
         setFood(newFood);
-    }, [snake, obstacles]);
+    }, [snake, obstacles, generateRandomPosition]);
 
     const generateObstacle = useCallback(() => {
         let newObstacle;
@@ -47,7 +49,7 @@ const Snake = ({ userId, onBalanceUpdate }) => {
             obstacles.some(obstacle => obstacle.x === newObstacle.x && obstacle.y === newObstacle.y)
         );
         setObstacles(prevObstacles => [...prevObstacles, newObstacle]);
-    }, [snake, food, obstacles]);
+    }, [snake, food, obstacles, generateRandomPosition]);
 
     const moveSnake = useCallback(() => {
         if (!isPlaying || gameOver) return;
@@ -85,35 +87,53 @@ const Snake = ({ userId, onBalanceUpdate }) => {
     }, [isPlaying, gameOver, snake, direction, food, obstacles, score, generateFood, generateObstacle]);
 
     useEffect(() => {
+        const handleResize = () => {
+            if (gameboardRef.current) {
+                const smallerDimension = Math.min(window.innerWidth, window.innerHeight);
+                const newCellSize = Math.floor((smallerDimension * 0.9) / GRID_SIZE);
+                setCellSize(newCellSize);
+                
+                // Adjust speed based on screen size
+                const speedAdjustment = Math.max(1, Math.floor(newCellSize / 20));
+                setSpeed(prevSpeed => Math.min(prevSpeed * speedAdjustment, INITIAL_SPEED));
+            }
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
         if (!food && isPlaying) {
             generateFood();
         }
     }, [food, isPlaying, generateFood]);
 
-    useEffect(() => {
-        const handleKeyPress = (e) => {
-            if (!isPlaying) return;
-            switch (e.key) {
-                case 'ArrowUp':
-                    if (direction.y === 0) setDirection({ x: 0, y: -1 });
-                    break;
-                case 'ArrowDown':
-                    if (direction.y === 0) setDirection({ x: 0, y: 1 });
-                    break;
-                case 'ArrowLeft':
-                    if (direction.x === 0) setDirection({ x: -1, y: 0 });
-                    break;
-                case 'ArrowRight':
-                    if (direction.x === 0) setDirection({ x: 1, y: 0 });
-                    break;
-                default:
-                    break;
-            }
-        };
+    const handleKeyPress = useCallback((e) => {
+        if (!isPlaying) return;
+        switch (e.key) {
+            case 'ArrowUp':
+                if (direction.y === 0) setDirection({ x: 0, y: -1 });
+                break;
+            case 'ArrowDown':
+                if (direction.y === 0) setDirection({ x: 0, y: 1 });
+                break;
+            case 'ArrowLeft':
+                if (direction.x === 0) setDirection({ x: -1, y: 0 });
+                break;
+            case 'ArrowRight':
+                if (direction.x === 0) setDirection({ x: 1, y: 0 });
+                break;
+            default:
+                break;
+        }
+    }, [isPlaying, direction]);
 
+    useEffect(() => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [isPlaying, direction]);
+    }, [handleKeyPress]);
 
     useEffect(() => {
         if (isPlaying && !gameOver) {
@@ -139,7 +159,7 @@ const Snake = ({ userId, onBalanceUpdate }) => {
         setEarnedTokens(newTokens);
     };
 
-    const endGame = async () => {
+    const endGame = useCallback(async () => {
         setIsPlaying(false);
         setGameOver(true);
 
@@ -159,13 +179,77 @@ const Snake = ({ userId, onBalanceUpdate }) => {
             console.error('Failed to update balance:', error);
             toast.error('Failed to update balance. Please try again later.');
         }
-    };
+    }, [userId, earnedTokens, onBalanceUpdate]);
 
     useEffect(() => {
         if (gameOver) {
             endGame();
         }
-    }, [gameOver]);
+    }, [gameOver, endGame]);
+
+    const handleTouchStart = useCallback((e) => {
+        if (!isPlaying) return;
+        const touch = e.touches[0];
+        const startX = touch.clientX;
+        const startY = touch.clientY;
+
+        const handleTouchEnd = (e) => {
+            const touch = e.changedTouches[0];
+            const endX = touch.clientX;
+            const endY = touch.clientY;
+
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                // Horizontal swipe
+                if (diffX > 0 && direction.x === 0) {
+                    setDirection({ x: 1, y: 0 });
+                } else if (diffX < 0 && direction.x === 0) {
+                    setDirection({ x: -1, y: 0 });
+                }
+            } else {
+                // Vertical swipe
+                if (diffY > 0 && direction.y === 0) {
+                    setDirection({ x: 0, y: 1 });
+                } else if (diffY < 0 && direction.y === 0) {
+                    setDirection({ x: 0, y: -1 });
+                }
+            }
+
+            document.removeEventListener('touchend', handleTouchEnd);
+        };
+
+        document.addEventListener('touchend', handleTouchEnd);
+    }, [isPlaying, direction]);
+
+    useEffect(() => {
+        const gameboard = gameboardRef.current;
+        if (gameboard) {
+            gameboard.addEventListener('touchstart', handleTouchStart);
+            return () => gameboard.removeEventListener('touchstart', handleTouchStart);
+        }
+    }, [handleTouchStart]);
+
+    const handleDirectionButton = (newDirection) => {
+        if (!isPlaying) return;
+        switch (newDirection) {
+            case 'up':
+                if (direction.y === 0) setDirection({ x: 0, y: -1 });
+                break;
+            case 'down':
+                if (direction.y === 0) setDirection({ x: 0, y: 1 });
+                break;
+            case 'left':
+                if (direction.x === 0) setDirection({ x: -1, y: 0 });
+                break;
+            case 'right':
+                if (direction.x === 0) setDirection({ x: 1, y: 0 });
+                break;
+            default:
+                break;
+        }
+    };
 
     return (
         <div className="snake-game">
@@ -175,11 +259,11 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                 <p>Tokens Earned: {earnedTokens}</p>
             </div>
             <div 
+                ref={gameboardRef}
                 className="game-board" 
                 style={{
-                    width: GRID_SIZE * CELL_SIZE, 
-                    height: GRID_SIZE * CELL_SIZE,
-                    position: 'relative',
+                    width: GRID_SIZE * cellSize, 
+                    height: GRID_SIZE * cellSize,
                 }}
             >
                 {snake.map((segment, index) => (
@@ -187,10 +271,10 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                         key={index}
                         className="snake-segment"
                         style={{
-                            left: segment.x * CELL_SIZE,
-                            top: segment.y * CELL_SIZE,
-                            width: CELL_SIZE,
-                            height: CELL_SIZE,
+                            left: segment.x * cellSize,
+                            top: segment.y * cellSize,
+                            width: cellSize,
+                            height: cellSize,
                         }}
                     />
                 ))}
@@ -198,10 +282,10 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                     <div
                         className="food"
                         style={{
-                            left: food.x * CELL_SIZE,
-                            top: food.y * CELL_SIZE,
-                            width: CELL_SIZE,
-                            height: CELL_SIZE,
+                            left: food.x * cellSize,
+                            top: food.y * cellSize,
+                            width: cellSize,
+                            height: cellSize,
                         }}
                     />
                 )}
@@ -210,10 +294,10 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                         key={`obstacle-${index}`}
                         className="obstacle"
                         style={{
-                            left: obstacle.x * CELL_SIZE,
-                            top: obstacle.y * CELL_SIZE,
-                            width: CELL_SIZE,
-                            height: CELL_SIZE,
+                            left: obstacle.x * cellSize,
+                            top: obstacle.y * cellSize,
+                            width: cellSize,
+                            height: cellSize,
                         }}
                     />
                 ))}
@@ -224,6 +308,12 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                 </button>
             )}
             {gameOver && <p className="game-over">Game Over!</p>}
+            <div className="control-buttons">
+                <button onClick={() => handleDirectionButton('up')}>↑</button>
+                <button onClick={() => handleDirectionButton('left')}>←</button>
+                <button onClick={() => handleDirectionButton('right')}>→</button>
+                <button onClick={() => handleDirectionButton('down')}>↓</button>
+            </div>
         </div>
     );
 };

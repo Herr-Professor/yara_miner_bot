@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import './SpinningWheel.css';
 
 const SpinningWheel = ({ userId, onBalanceUpdate }) => {
     const [balance, setBalance] = useState(0);
@@ -8,6 +9,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
     const [isSpinning, setIsSpinning] = useState(false);
     const [result, setResult] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [wheelRotation, setWheelRotation] = useState(0);
 
     const wheelOptions = [
         { label: 'x2', value: 'x2', chance: 50 },
@@ -23,7 +25,6 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
         { label: '-10000', value: -10000, chance: 35 },
     ];
 
-    // Duplicate each option and add two more '0's
     const fullWheel = [
         ...wheelOptions,
         ...wheelOptions,
@@ -44,6 +45,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             }
             const userData = await response.json();
             setBalance(userData.balance);
+            onBalanceUpdate(userData.balance);
         } catch (error) {
             console.error('Failed to fetch user balance:', error);
             toast.error('Failed to fetch user balance. Please try again later.');
@@ -80,22 +82,16 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
         setIsSpinning(true);
         setResult(null);
 
-        // Simulate spinning animation
-        const spinDuration = 3000; // 3 seconds
-        const intervalDuration = 100; // 0.1 seconds
-        const intervals = spinDuration / intervalDuration;
-        let currentInterval = 0;
+        const spinDuration = 5000; // 5 seconds
+        const fullRotations = 5; // Number of full rotations before landing
+        const selectedIndex = Math.floor(Math.random() * fullWheel.length);
+        const finalRotation = fullRotations * 360 + (selectedIndex * (360 / fullWheel.length));
 
-        const spinInterval = setInterval(() => {
-            const randomIndex = Math.floor(Math.random() * fullWheel.length);
-            setResult(fullWheel[randomIndex]);
-            currentInterval++;
+        setWheelRotation(finalRotation);
 
-            if (currentInterval >= intervals) {
-                clearInterval(spinInterval);
-                handleSpinResult(fullWheel[randomIndex], cost);
-            }
-        }, intervalDuration);
+        setTimeout(() => {
+            handleSpinResult(fullWheel[selectedIndex], cost);
+        }, spinDuration);
     };
 
     const handleSpinResult = async (result, cost) => {
@@ -149,6 +145,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             toast.error('Failed to update balance. Please try again later.');
         } finally {
             setIsSpinning(false);
+            setResult(result);
         }
     };
 
@@ -203,13 +200,31 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
                     Buy Spin (1000 YARA)
                 </button>
             </div>
-            <div className="wheel-display">
-                {result && (
-                    <p className="result">
-                        Result: {result.label} ({result.chance}% chance)
-                    </p>
-                )}
+            <div className="wheel-container">
+                <div 
+                    className="wheel" 
+                    style={{ transform: `rotate(${wheelRotation}deg)`, transition: isSpinning ? '5s cubic-bezier(0.25, 0.1, 0.25, 1)' : 'none' }}
+                >
+                    {fullWheel.map((option, index) => (
+                        <div 
+                            key={index} 
+                            className="wheel-option"
+                            style={{ 
+                                transform: `rotate(${index * (360 / fullWheel.length)}deg) translateY(-50%)`,
+                                opacity: result && result.label === option.label ? 1 : 0.5
+                            }}
+                        >
+                            {option.label}
+                        </div>
+                    ))}
+                </div>
+                <div className="wheel-pointer"></div>
             </div>
+            {result && (
+                <p className="result">
+                    Result: {result.label} ({result.chance}% chance)
+                </p>
+            )}
             <div className="wheel-options">
                 <h3>Wheel Options:</h3>
                 <ul>
