@@ -14,11 +14,9 @@ import './App.css';
 
 function App() {
     const { telegramUser } = useContext(TelegramContext);
-
-    const username = telegramUser ? telegramUser.username : 'Unknown';
-    const [user, setUser] = useState({ user_id: telegramUser ? telegramUser.id : '123', balance: 1000 });
-    const [balance, setBalance] = useState(1000);
-    const [nextClaimTime, setNextClaimTime] = useState(new Date().getTime() + 8 * 60 * 60 * 1000);
+    const [user, setUser] = useState(null);
+    const [balance, setBalance] = useState(0);
+    const [nextClaimTime, setNextClaimTime] = useState(null);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
     
@@ -56,6 +54,8 @@ function App() {
     }, [nextClaimTime]);
 
     const handleClaim = async () => {
+        if (!user) return;
+
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/claim', {
                 method: 'POST',
@@ -80,8 +80,24 @@ function App() {
     };
 
     const fetchUserData = async () => {
+        if (!telegramUser) return;
+
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${telegramUser.id}`);
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/user/check_and_create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: telegramUser.id.toString(),
+                    username: telegramUser.username || `User${telegramUser.id}`
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user data');
+            }
+
             const userData = await response.json();
             setUser(userData);
             setBalance(userData.balance);
@@ -102,7 +118,6 @@ function App() {
         const tg = window.Telegram.WebApp;
         tg.BackButton.show();
         tg.BackButton.onClick(() => {
-            // Handle back button click
             if (activeTab !== 'main') {
                 setActiveTab('main');
             } else {
@@ -143,24 +158,28 @@ function App() {
                 ))}
             </nav>
             {transitions((style, item) => (
-            <animated.div style={style} className="tab-content">
-                {item === 'main' && (
-                    <>
-                        <Username username={username} />
-                        <div className="balance-claim-container">
-                            <Balance balance={balance} />
-                            <ClaimButton 
-                                onClaim={handleClaim} 
-                                nextClaimTime={nextClaimTime}
-                                miningProgress={miningProgress}
-                            />
-                        </div>
-                        <TaskList />
-                    </>
+                <animated.div style={style} className="tab-content">
+                    {item === 'main' && (
+                        user ? (
+                            <>
+                                <Username username={user.username} />
+                                <div className="balance-claim-container">
+                                    <Balance balance={balance} />
+                                    <ClaimButton 
+                                        onClaim={handleClaim} 
+                                        nextClaimTime={nextClaimTime}
+                                        miningProgress={miningProgress}
+                                    />
+                                </div>
+                                <TaskList />
+                            </>
+                        ) : (
+                            <p>Loading user data...</p>
+                        )
                     )}
-                    {item === 'games' && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}
+                    {item === 'games' && user && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}
                     {item === 'leaderboard' && <Leaderboard />}
-                    {item === 'referral' && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
+                    {item === 'referral' && user && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
                 </animated.div>
             ))}
             <ToastContainer position="bottom-right" />

@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime, timedelta
-import os
+import logging
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app"]}})
@@ -28,6 +28,28 @@ class Referral(db.Model):
 
 with app.app_context():
     db.create_all()
+
+@app.route('/api/user/check_and_create', methods=['POST'])
+def check_and_create_user():
+    data = request.json
+    user = User.query.filter_by(user_id=data['user_id']).first()
+    
+    if not user:
+        # Create new user
+        new_user = User(user_id=data['user_id'], username=data['username'])
+        db.session.add(new_user)
+        db.session.commit()
+        app.logger.info(f"Created new user: {new_user.username}")
+        user = new_user
+    
+    return jsonify({
+        'user_id': user.user_id,
+        'username': user.username,
+        'balance': user.balance,
+        'last_claim': user.last_claim.isoformat() if user.last_claim else None,
+        'cipher_solved': user.cipher_solved,
+        'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None
+    })
 
 @app.route('/api/user/<user_id>', methods=['GET'])
 def get_user(user_id):
