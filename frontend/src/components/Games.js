@@ -13,7 +13,7 @@ const games = [
     { id: 8, name: 'Coming Soon', icon: 'fa-plus' },
 ];
 
-function Games({ userId }) {
+function Games({ userId, onBalanceUpdate }) {
     const [selectedGame, setSelectedGame] = useState(null);
     const [forceReload, setForceReload] = useState(0);
     const [cipherStatus, setCipherStatus] = useState({ cipher_solved: false, next_cipher_time: new Date().getTime() + 24 * 60 * 60 * 1000 });
@@ -42,7 +42,11 @@ function Games({ userId }) {
                 }}>
                     <i className="fas fa-arrow-left"></i> Back to Games
                 </button>
-                <GameComponent key={forceReload} userId={userId} />
+                <GameComponent 
+                    key={forceReload} 
+                    userId={userId} 
+                    onBalanceUpdate={onBalanceUpdate}
+                />
             </div>
         ) : (
             <div>

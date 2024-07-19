@@ -15,7 +15,6 @@ import './App.css';
 function App() {
     const { telegramUser } = useContext(TelegramContext);
 
-    // Use telegramUser.username instead of a separate state
     const username = telegramUser ? telegramUser.username : 'Unknown';
     const [user, setUser] = useState({ user_id: telegramUser ? telegramUser.id : '123', balance: 1000 });
     const [balance, setBalance] = useState(1000);
@@ -56,34 +55,64 @@ function App() {
         }
     }, [nextClaimTime]);
 
-    const handleClaim = () => {
-        setBalance(prevBalance => prevBalance + 100);
-        setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
-        setMiningProgress(0);
-        toast.success('Tokens claimed successfully!');
+    const handleClaim = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/api/claim', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ user_id: user.user_id }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setBalance(data.new_balance);
+                setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
+                setMiningProgress(0);
+                toast.success('Tokens claimed successfully!');
+            } else {
+                toast.error(data.error || 'Failed to claim tokens');
+            }
+        } catch (error) {
+            console.error('Failed to claim tokens:', error);
+            toast.error('Failed to claim tokens');
+        }
     };
 
     const fetchUserData = async () => {
         try {
-            const userData = await getUserData(telegramUser.id);
+            const response = await fetch(`http://localhost:5000/api/user/${telegramUser.id}`);
+            const userData = await response.json();
             setUser(userData);
             setBalance(userData.balance);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
         } catch (error) {
             console.error('Failed to fetch user data:', error);
+            toast.error('Failed to fetch user data');
         }
     };
+
+    useEffect(() => {
+        if (telegramUser) {
+            fetchUserData();
+        }
+    }, [telegramUser]);
 
     useEffect(() => {
         const tg = window.Telegram.WebApp;
         tg.BackButton.show();
         tg.BackButton.onClick(() => {
             // Handle back button click
+            if (activeTab !== 'main') {
+                setActiveTab('main');
+            } else {
+                tg.close();
+            }
         });
         return () => {
             tg.BackButton.hide();
         };
-    }, []);
+    }, [activeTab]);
 
     const tabs = [
         { id: 'main', icon: 'fa-home', label: 'Main' },
