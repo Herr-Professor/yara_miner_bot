@@ -16,19 +16,9 @@ const games = [
 function Games({ userId, onBalanceUpdate }) {
     const [selectedGame, setSelectedGame] = useState(null);
     const [forceReload, setForceReload] = useState(0);
-    const [cipherStatus, setCipherStatus] = useState({ cipher_solved: false, next_cipher_time: new Date().getTime() + 24 * 60 * 60 * 1000 });
 
-    const handleCipherClick = () => {
-        const nextAvailableTime = new Date(cipherStatus.next_cipher_time);
-        const currentTime = new Date();
-        
-        if (currentTime >= nextAvailableTime) {
-            setSelectedGame(games.find(game => game.id === 1));
-        } else {
-            const formattedTime = nextAvailableTime.toLocaleString([], { hour: 'numeric', minute: 'numeric' });
-            const message = `You have already solved the cipher. It will be available next at ${formattedTime} UTC.`;
-            alert(message); // Replace with a toast or snack notification component
-        }
+    const handleGameClick = (game) => {
+        setSelectedGame(game);
     };
 
     const renderGame = () => {
@@ -64,9 +54,9 @@ function Games({ userId, onBalanceUpdate }) {
                 <div className="games-grid">
                     {games.map(game => (
                         <div 
-                            key={game.id} 
-                            className={`game-item ${game.id === 1 && cipherStatus.cipher_solved ? 'disabled' : ''}`} 
-                            onClick={game.id === 1 ? handleCipherClick : () => setSelectedGame(game)}
+                            key={(link unavailable)} 
+                            className="game-item" 
+                            onClick={() => handleGameClick(game)}
                         >
                             <i className={`fas ${game.icon}`}></i>
                             <span>{game.name}</span>
