@@ -35,6 +35,9 @@ function ReferralSystem({ userId, balance, setBalance }) {
         setIsLoading(true);
         try {
             const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/referrals/${userId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch referral data');
+            }
             const data = await response.json();
             setReferralCode(data.referral_code);
             setLastClaimTime(data.last_claim_time);
@@ -48,14 +51,18 @@ function ReferralSystem({ userId, balance, setBalance }) {
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(referralCode);
-        toast.success('Referral code copied to clipboard!');
+        navigator.clipboard.writeText(referralCode)
+            .then(() => toast.success('Referral code copied to clipboard!'))
+            .catch(err => {
+                console.error('Failed to copy referral code:', err);
+                toast.error('Failed to copy referral code');
+            });
     };
 
     const claimAll = async () => {
         if (canClaim && referrals.length > 0) {
             try {
-                const response = await fetch('https://herrprofessor.pythonanywhere.com/claim_referrals', {
+                const response = await fetch('https://herrprofessor.pythonanywhere.com/api/claim_referrals', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -96,7 +103,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
 
     return (
         <div className="referral-system">
-            <p>Your referral code: {referralCode}</p>
+            <p>Your referral code: <strong>{referralCode}</strong></p>
             <button onClick={copyToClipboard}>Copy Code</button>
             <p>Share this code with your friends to earn 25% of their profits!</p>
 

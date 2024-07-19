@@ -46,7 +46,7 @@ const Crash = ({ userId, onBalanceUpdate }) => {
         }
     };
 
-    const startGame = () => {
+    const startGame = async () => {
         if (!betAmount || parseFloat(betAmount) <= 0) {
             setError('Please enter a valid bet amount');
             return;
@@ -57,6 +57,25 @@ const Crash = ({ userId, onBalanceUpdate }) => {
         setIsCrashed(false);
         setCashoutMultiplier(null);
         crashPointRef.current = generateCrashPoint();
+
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, amount: -parseFloat(betAmount) }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update balance');
+            }
+            const data = await response.json();
+            setBalance(data.new_balance);
+            onBalanceUpdate(data.new_balance);
+        } catch (error) {
+            console.error('Failed to update balance:', error);
+            toast.error('Failed to update balance. Please try again later.');
+            setIsPlaying(false);
+            return;
+        }
 
         intervalRef.current = setInterval(() => {
             setMultiplier((prev) => {
@@ -70,16 +89,27 @@ const Crash = ({ userId, onBalanceUpdate }) => {
     };
 
     const generateCrashPoint = () => {
-        return Math.floor(Math.random() * 5) + 1.5;
+        const rand = Math.random() * 100;
+        if (rand <= 70) {
+            return (Math.random() * (2.2 - 1.2) + 1.2).toFixed(2);
+        } else if (rand <= 90) {
+            return (Math.random() * (5.5 - 2.3) + 2.3).toFixed(2);
+        } else if (rand <= 97) {
+            return (Math.random() * (10.3 - 5.6) + 5.6).toFixed(2);
+        } else if (rand <= 99) {
+            return (Math.random() * (20.0 - 10.3) + 10.3).toFixed(2);
+        } else {
+            return (Math.random() * (50.0 - 20.0) + 20.0).toFixed(2);
+        }
     };
 
     const cashout = async () => {
         if (!isPlaying || isCrashed) return;
-    
+
         clearInterval(intervalRef.current);
         setIsPlaying(false);
         setCashoutMultiplier(multiplier);
-    
+
         const winAmount = parseFloat(betAmount) * multiplier;
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
@@ -100,7 +130,7 @@ const Crash = ({ userId, onBalanceUpdate }) => {
             toast.error('Failed to update balance. Please try again later.');
         }
     };
-    
+
     const endGame = async () => {
         clearInterval(intervalRef.current);
         setIsPlaying(false);
@@ -151,10 +181,10 @@ const Crash = ({ userId, onBalanceUpdate }) => {
             {error && <p className="error">{error}</p>}
             <div className="game-display">
                 <p className="multiplier">{multiplier.toFixed(2)}x</p>
-                {isCrashed && <p className="crash-message">Crashed at {crashPointRef.current.toFixed(2)}x</p>}
+                {isCrashed && <p className="crash-message">Crashed at {crashPointRef.current}x</p>}
                 {cashoutMultiplier && (
                     <p className="cashout-message">
-                        Cashed out at {cashoutMultiplier.toFixed(2)}x! 
+                        Cashed out at {cashoutMultiplier.toFixed(2)}x!
                         Won: {(parseFloat(betAmount) * cashoutMultiplier - parseFloat(betAmount)).toFixed(2)} YARA
                     </p>
                 )}

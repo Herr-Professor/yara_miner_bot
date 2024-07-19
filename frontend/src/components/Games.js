@@ -3,13 +3,16 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Cipher from './games/Cipher';
 import Crash from './games/Crash';
+import TwoZeroFourEight from './games/TwoZeroFourEight';
+import SpinningWheel from './games/SpinningWheel';
+import Snake from './games/Snake';
 
 const games = [
     { id: 1, name: 'Cipher', icon: 'fa-lock', component: Cipher },
     { id: 2, name: 'Crash', icon: 'fa-chart-line', component: Crash },
-    { id: 3, name: '2048', icon: 'fa-th' },
-    { id: 4, name: 'Snake', icon: 'fa-snake' },
-    { id: 5, name: 'Spinner', icon: 'fa-spinner' },
+    { id: 3, name: '2048', icon: 'fa-th', component: TwoZeroFourEight },
+    { id: 4, name: 'Snake', icon: 'fa-snake', component: Snake },
+    { id: 5, name: 'Spinner', icon: 'fa-spinner', component: SpinningWheel },
     { id: 6, name: 'Coming Soon', icon: 'fa-plus' },
     { id: 7, name: 'Coming Soon', icon: 'fa-plus' },
     { id: 8, name: 'Coming Soon', icon: 'fa-plus' },
@@ -120,10 +123,10 @@ function Games({ userId, onBalanceUpdate }) {
                                         onClick={handlePlayCipher}
                                         disabled={cipherStatus.solved || (cipherStatus.nextAvailableTime && new Date() < new Date(cipherStatus.nextAvailableTime))}
                                     >
-                                        Play
+                                        <p> {timeLeft}</p>
                                     </button>
                                     {cipherStatus.solved ? (
-                                        <p>Next available: {timeLeft}</p>
+                                        <p> {timeLeft}</p>
                                     ) : (
                                         <p>{timeLeft}</p>
                                     )}
