@@ -125,27 +125,6 @@ const Crash = ({ userId, onBalanceUpdate }) => {
         }
     };
 
-    const endGame = async () => {
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-        setIsCrashed(true);
-        try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, amount: -parseFloat(betAmount) }),
-            });
-            const data = await response.json();
-            setBalance(data.new_balance);
-            onBalanceUpdate(data.new_balance);
-            setGameHistory((prev) => [...prev, { multiplier: crashPointRef.current, bet: betAmount, win: 0 }]);
-            toast.error(`You lost ${betAmount} YARA!`);
-        } catch (error) {
-            console.error('Failed to update balance:', error);
-            toast.error('Failed to update balance');
-        }
-    };
-
     if (isLoading) {
         return <div>Loading...</div>;
     }
