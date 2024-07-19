@@ -37,11 +37,13 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
     const handleClick = async () => {
         setIsLoading(true);
         try {
-            await onClaim();
-            toast.success('Tokens claimed successfully!');
+            const success = await onClaim();
+            if (success) {
+                toast.success('Tokens claimed successfully!');
+            }
         } catch (error) {
             console.error('Failed to claim tokens:', error);
-            toast.error('Failed to claim tokens. Please try again later.');
+            toast.error(error.message || 'Failed to claim tokens. Please try again later.');
         } finally {
             setIsLoading(false);
         }

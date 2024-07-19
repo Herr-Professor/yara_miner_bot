@@ -55,9 +55,9 @@ function App() {
 
     const handleClaim = async () => {
         if (!user) return;
-
+    
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/claim', {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/claim', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -69,13 +69,13 @@ function App() {
                 setBalance(data.new_balance);
                 setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
                 setMiningProgress(0);
-                toast.success('Tokens claimed successfully!');
+                return true; // Indicate success
             } else {
-                toast.error(data.error || 'Failed to claim tokens');
+                throw new Error(data.error || 'Failed to claim tokens');
             }
         } catch (error) {
             console.error('Failed to claim tokens:', error);
-            toast.error('Failed to claim tokens');
+            throw error; // Rethrow the error to be caught in the ClaimButton component
         }
     };
 

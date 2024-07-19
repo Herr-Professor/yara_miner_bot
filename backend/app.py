@@ -75,7 +75,7 @@ def claim_tokens():
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if user.last_claim is None or datetime.utcnow() - user.last_claim >= timedelta(hours=8):
-            user.balance += 100
+            user.balance += 3500
             user.last_claim = datetime.utcnow()
             db.session.commit()
             return jsonify({'success': True, 'new_balance': user.balance})
