@@ -80,8 +80,13 @@ function App() {
     };
 
     const fetchUserData = async () => {
-        if (!telegramUser) return;
-
+        if (!telegramUser) {
+            console.log("No telegram user data available");
+            return;
+        }
+    
+        console.log("Attempting to fetch user data for:", telegramUser.id);
+    
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/api/user/check_and_create', {
                 method: 'POST',
@@ -93,18 +98,24 @@ function App() {
                     username: telegramUser.username || `User${telegramUser.id}`
                 }),
             });
-
+    
+            console.log("Response status:", response.status);
+    
             if (!response.ok) {
-                throw new Error('Failed to fetch user data');
+                const errorText = await response.text();
+                console.error("Error response:", errorText);
+                throw new Error(`Failed to fetch user data: ${response.status} ${errorText}`);
             }
-
+    
             const userData = await response.json();
+            console.log("Received user data:", userData);
+    
             setUser(userData);
             setBalance(userData.balance);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
         } catch (error) {
             console.error('Failed to fetch user data:', error);
-            toast.error('Failed to fetch user data');
+            toast.error(`Failed to fetch user data: ${error.message}`);
         }
     };
 

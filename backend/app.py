@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app"]}})
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app", "https://t.me"]}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -32,6 +32,8 @@ with app.app_context():
 @app.route('/api/user/check_and_create', methods=['POST'])
 def check_and_create_user():
     data = request.json
+    app.logger.info(f"Received request to check/create user: {data}")
+    
     user = User.query.filter_by(user_id=data['user_id']).first()
     
     if not user:
@@ -41,6 +43,8 @@ def check_and_create_user():
         db.session.commit()
         app.logger.info(f"Created new user: {new_user.username}")
         user = new_user
+    else:
+        app.logger.info(f"Found existing user: {user.username}")
     
     return jsonify({
         'user_id': user.user_id,
