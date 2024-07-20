@@ -173,7 +173,7 @@ const Snake = ({ userId, onBalanceUpdate }) => {
                 throw new Error('Failed to update balance');
             }
             const data = await response.json();
-            onBalanceUpdate(data.new_balance);
+            onBalanceUpdate(data.new_balance); // Use the onBalanceUpdate prop here
             toast.success(`Game Over! You earned ${earnedTokens} YARA tokens!`);
         } catch (error) {
             console.error('Failed to update balance:', error);

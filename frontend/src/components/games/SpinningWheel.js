@@ -131,7 +131,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             }
             const data = await response.json();
             setBalance(data.new_balance);
-            onBalanceUpdate(data.new_balance);
+            onBalanceUpdate(data.new_balance); // Update parent component's balance
 
             if (winAmount > 0) {
                 toast.success(`You won ${winAmount} YARA!`);
@@ -167,7 +167,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             }
             const data = await response.json();
             setBalance(data.new_balance);
-            onBalanceUpdate(data.new_balance);
+            onBalanceUpdate(data.new_balance); // Update parent component's balance
             setFreeSpins(freeSpins + 1);
             toast.success('You bought 1 spin!');
         } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import './TwoZeroFourEight.css';
 
 const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
     const [board, setBoard] = useState([]);

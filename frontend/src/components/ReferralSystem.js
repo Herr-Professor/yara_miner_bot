@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 
 function ReferralSystem({ userId, balance, setBalance }) {
-    const [referralCode, setReferralCode] = useState('');
     const [referralLink, setReferralLink] = useState('');
     const [lastClaimTime, setLastClaimTime] = useState(null);
     const [canClaim, setCanClaim] = useState(false);
@@ -40,7 +39,6 @@ function ReferralSystem({ userId, balance, setBalance }) {
                 throw new Error('Failed to fetch referral data');
             }
             const data = await response.json();
-            setReferralCode(data.referral_code);
             setReferralLink(data.referral_link);
             setLastClaimTime(data.last_claim_time);
             setReferrals(data.referrals);
@@ -113,15 +111,14 @@ function ReferralSystem({ userId, balance, setBalance }) {
 
     return (
         <div className="referral-system">
-            <p>Your referral code: <strong>{referralCode}</strong></p>
-            <button onClick={() => copyToClipboard(referralCode, 'Referral code copied to clipboard!')}>
-                Copy Code
-            </button>
             <p>Your referral link:</p>
+            <button onClick={() => copyToClipboard(referralLink, 'Referral link copied to clipboard!')}>
+                Copy Referral Link
+            </button>
             <button onClick={shareReferralLink}>
                 Share Referral Link
             </button>
-            <p>Share this code or link with your friends to earn 25% of their profits!</p>
+            <p>Share this link with your friends to earn 25% of their profits!</p>
 
             <div className="claim-all-section">
                 <h3>Your Referrals: {referrals.length}</h3>

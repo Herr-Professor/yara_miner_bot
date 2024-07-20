@@ -45,8 +45,8 @@ def check_and_create_user():
     user = User.query.filter_by(user_id=data['user_id']).first()
     
     if not user:
-        referral_code = data.get('referral_code')
-        referrer = User.query.filter_by(referral_code=referral_code).first() if referral_code else None
+        referral_link = data.get('referral_link')
+        referrer = User.query.filter_by(referral_code=referral_link.split('=')[-1]).first() if referral_link else None
         
         new_user = User(
             user_id=data['user_id'],
@@ -73,7 +73,7 @@ def check_and_create_user():
         'last_claim': user.last_claim.isoformat() if user.last_claim else None,
         'cipher_solved': user.cipher_solved,
         'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None,
-        'referral_code': user.referral_code
+        'referral_link': f"https://t.me/yara_miner_bot?start={user.referral_code}"
     })
 
 @app.route('/api/user/<user_id>', methods=['GET'])

@@ -79,16 +79,20 @@ function Games({ userId, onBalanceUpdate }) {
     };
 
     const fetchUserBalance = async () => {
+        setIsLoading(true);
         try {
             const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
             if (!response.ok) {
-                throw new Error('Failed to fetch user balance');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch user balance');
             }
             const userData = await response.json();
             onBalanceUpdate(userData.balance);
         } catch (error) {
             console.error('Failed to fetch user balance:', error);
-            toast.error('Failed to fetch user balance. Please try again later.');
+            toast.error(`Failed to fetch user balance: ${error.message}`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
