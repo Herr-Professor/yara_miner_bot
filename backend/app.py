@@ -73,7 +73,7 @@ def check_and_create_user():
         'last_claim': user.last_claim.isoformat() if user.last_claim else None,
         'cipher_solved': user.cipher_solved,
         'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None,
-        'referral_link': f"https://t.me/yara_miner_bot?start={user.referral_code}"
+        'referral_link': f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
     })
 
 @app.route('/api/user/<user_id>', methods=['GET'])
@@ -145,8 +145,7 @@ def get_referrals(user_id):
         claimable_amount = calculate_claimable_amount(user)
         
         # Generate Telegram-specific referral link
-        telegram_bot_username = "yara_miner_bot"  # Replace with your actual bot username
-        referral_link = f"https://t.me/{telegram_bot_username}?start={user.referral_code}"
+        referral_link = f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
         
         return jsonify({
             'referral_code': user.referral_code,

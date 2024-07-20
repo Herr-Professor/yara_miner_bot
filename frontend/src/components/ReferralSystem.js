@@ -59,14 +59,6 @@ function ReferralSystem({ userId, balance, setBalance }) {
             });
     };
 
-    const shareReferralLink = () => {
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.openTelegramLink(referralLink);
-        } else {
-            copyToClipboard(referralLink, 'Referral link copied to clipboard!');
-        }
-    };
-
     const claimAll = async () => {
         if (canClaim && referrals.length > 0) {
             try {
@@ -113,10 +105,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
         <div className="referral-system">
             <p>Your referral link:</p>
             <button onClick={() => copyToClipboard(referralLink, 'Referral link copied to clipboard!')}>
-                Copy Referral Link
-            </button>
-            <button onClick={shareReferralLink}>
-                Share Referral Link
+                Copy Link
             </button>
             <p>Share this link with your friends to earn 25% of their profits!</p>
 
