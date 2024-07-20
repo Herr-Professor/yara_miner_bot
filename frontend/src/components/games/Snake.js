@@ -51,7 +51,28 @@ const Snake = ({ userId, onBalanceUpdate }) => {
         setObstacles(prevObstacles => [...prevObstacles, newObstacle]);
     }, [snake, food, obstacles, generateRandomPosition]);
 
-    const moveSnake = useCallback(() => {
+    const updateBalance = async (snakeLength) => {
+        const earnedTokens = Math.floor(snakeLength * (snakeLength / 10));
+        try {
+            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, amount: earnedTokens }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update balance');
+            }
+            const data = await response.json();
+            onBalanceUpdate(data.new_balance);
+            setEarnedTokens(prevTokens => prevTokens + earnedTokens);
+            toast.success(`You earned ${earnedTokens} YARA tokens!`);
+        } catch (error) {
+            console.error('Failed to update balance:', error);
+            toast.error('Failed to update balance. Please try again later.');
+        }
+    };
+
+    const moveSnake = useCallback(async () => {
         if (!isPlaying || gameOver) return;
 
         const newHead = {
@@ -78,13 +99,13 @@ const Snake = ({ userId, onBalanceUpdate }) => {
             if (score > 0 && score % OBSTACLE_INTERVAL === 0) {
                 generateObstacle();
             }
-            updateEarnedTokens(newSnake.length);
+            await updateBalance(newSnake.length);
         } else {
             newSnake.pop();
         }
 
         setSnake(newSnake);
-    }, [isPlaying, gameOver, snake, direction, food, obstacles, score, generateFood, generateObstacle]);
+    }, [isPlaying, gameOver, snake, direction, food, obstacles, score, generateFood, generateObstacle, updateBalance]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -154,32 +175,11 @@ const Snake = ({ userId, onBalanceUpdate }) => {
         setEarnedTokens(0);
     };
 
-    const updateEarnedTokens = (snakeLength) => {
-        const newTokens = Math.floor(snakeLength * (snakeLength / 10));
-        setEarnedTokens(newTokens);
-    };
-
-    const endGame = useCallback(async () => {
+    const endGame = useCallback(() => {
         setIsPlaying(false);
         setGameOver(true);
-
-        try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, amount: earnedTokens }),
-            });
-            if (!response.ok) {
-                throw new Error('Failed to update balance');
-            }
-            const data = await response.json();
-            onBalanceUpdate(data.new_balance); // Use the onBalanceUpdate prop here
-            toast.success(`Game Over! You earned ${earnedTokens} YARA tokens!`);
-        } catch (error) {
-            console.error('Failed to update balance:', error);
-            toast.error('Failed to update balance. Please try again later.');
-        }
-    }, [userId, earnedTokens, onBalanceUpdate]);
+        toast.info(`Game Over! Total tokens earned: ${earnedTokens}`);
+    }, [earnedTokens]);
 
     useEffect(() => {
         if (gameOver) {

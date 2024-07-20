@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import './TwoZeroFourEight.css';
 
@@ -9,11 +9,7 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
     const [gameOver, setGameOver] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        initializeBoard();
-    }, []);
-
-    const initializeBoard = () => {
+    const initializeBoard = useCallback(() => {
         const newBoard = Array(4).fill().map(() => Array(4).fill(0));
         addNewTile(newBoard);
         addNewTile(newBoard);
@@ -21,7 +17,11 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         setScore(0);
         setHighestTile(0);
         setGameOver(false);
-    };
+    }, []);
+
+    useEffect(() => {
+        initializeBoard();
+    }, [initializeBoard]);
 
     const addNewTile = (board) => {
         const emptyCells = [];
@@ -38,17 +38,19 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         }
     };
 
-    const move = (direction) => {
+    const move = useCallback((direction) => {
         if (gameOver) return;
 
         let newBoard = JSON.parse(JSON.stringify(board));
         let moved = false;
+        let newScore = score;
 
         if (direction === 'left' || direction === 'right') {
             for (let i = 0; i < 4; i++) {
                 const row = newBoard[i];
-                const mergedRow = mergeRow(row, direction === 'left');
+                const [mergedRow, rowScore] = mergeRow(row, direction === 'left');
                 newBoard[i] = mergedRow;
+                newScore += rowScore;
                 if (JSON.stringify(row) !== JSON.stringify(mergedRow)) {
                     moved = true;
                 }
@@ -56,10 +58,11 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         } else {
             for (let j = 0; j < 4; j++) {
                 const column = newBoard.map(row => row[j]);
-                const mergedColumn = mergeRow(column, direction === 'up');
+                const [mergedColumn, columnScore] = mergeRow(column, direction === 'up');
                 for (let i = 0; i < 4; i++) {
                     newBoard[i][j] = mergedColumn[i];
                 }
+                newScore += columnScore;
                 if (JSON.stringify(column) !== JSON.stringify(mergedColumn)) {
                     moved = true;
                 }
@@ -69,19 +72,21 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         if (moved) {
             addNewTile(newBoard);
             setBoard(newBoard);
+            setScore(newScore);
             updateHighestTile(newBoard);
             checkGameOver(newBoard);
         }
-    };
+    }, [board, gameOver, score]);
 
     const mergeRow = (row, reverse) => {
         let newRow = row.filter(cell => cell !== 0);
         if (reverse) newRow.reverse();
+        let rowScore = 0;
 
         for (let i = 0; i < newRow.length - 1; i++) {
             if (newRow[i] === newRow[i + 1]) {
                 newRow[i] *= 2;
-                setScore(prevScore => prevScore + newRow[i]);
+                rowScore += newRow[i];
                 newRow.splice(i + 1, 1);
             }
         }
@@ -91,7 +96,7 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         }
 
         if (reverse) newRow.reverse();
-        return newRow;
+        return [newRow, rowScore];
     };
 
     const updateHighestTile = (board) => {
@@ -113,30 +118,40 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         handleGameOver();
     };
 
-    const handleGameOver = async () => {
-        setIsLoading(true);
+    const updateBalance = async (amount) => {
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_balance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, amount: calculateReward() }),
+                body: JSON.stringify({ user_id: userId, amount: amount }),
             });
             if (!response.ok) {
                 throw new Error('Failed to update balance');
             }
             const data = await response.json();
             onBalanceUpdate(data.new_balance);
-            toast.success(`Game Over! You earned ${calculateReward()} YARA!`);
+            return data.new_balance;
         } catch (error) {
             console.error('Failed to update balance:', error);
-            toast.error('Failed to update balance. Please try again later.');
+            toast.error('Failed to update balance. Please try again.');
+            throw error;
+        }
+    };
+
+    const handleGameOver = async () => {
+        setIsLoading(true);
+        const reward = calculateReward();
+        try {
+            const newBalance = await updateBalance(reward);
+            toast.success(`Game Over! You earned ${reward} YARA! New balance: ${newBalance} YARA`);
+        } catch (error) {
+            // Error handling is done in updateBalance function
         } finally {
             setIsLoading(false);
         }
     };
 
     const calculateReward = () => {
-        // Reward based on highest tile reached
         const rewardMap = {
             2048: 1000,
             1024: 500,
@@ -157,7 +172,7 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         return 0;
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = useCallback((e) => {
         if (gameOver) return;
         switch (e.key) {
             case 'ArrowLeft': move('left'); break;
@@ -166,14 +181,14 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
             case 'ArrowDown': move('down'); break;
             default: break;
         }
-    };
+    }, [gameOver, move]);
 
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [board, gameOver]);
+    }, [handleKeyDown]);
 
     return (
         <div className="two-zero-four-eight-game" tabIndex="0" onKeyDown={handleKeyDown}>
