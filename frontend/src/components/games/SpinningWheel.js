@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import './SpinningWheel.css';
 
@@ -10,26 +10,28 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
     const [result, setResult] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [wheelRotation, setWheelRotation] = useState(0);
+    const [lastWins, setLastWins] = useState([]);
+    const [spinHistory, setSpinHistory] = useState([]);
 
     const wheelOptions = [
-        { label: 'x2', value: 'x2', chance: 50 },
-        { label: 'x3', value: 'x3', chance: 25 },
-        { label: '+1000', value: 1000, chance: 20 },
-        { label: '+10000', value: 10000, chance: 10 },
-        { label: '0', value: 0, chance: 75 },
-        { label: '$1', value: 1, chance: 5 },
-        { label: '$5', value: 5, chance: 2 },
-        { label: '/2', value: '/2', chance: 50 },
-        { label: '/3', value: '/3', chance: 35 },
-        { label: '-1000', value: -1000, chance: 35 },
-        { label: '-10000', value: -10000, chance: 35 },
+        { label: 'x2', value: 'x2', chance: 50, color: '#ff6b6b' },
+        { label: 'x3', value: 'x3', chance: 25, color: '#feca57' },
+        { label: '+1000', value: 1000, chance: 20, color: '#48dbfb' },
+        { label: '+10000', value: 10000, chance: 10, color: '#ff9ff3' },
+        { label: '0', value: 0, chance: 75, color: '#54a0ff' },
+        { label: '$1', value: 1, chance: 5, color: '#5f27cd' },
+        { label: '$5', value: 5, chance: 2, color: '#ff6b6b' },
+        { label: '/2', value: '/2', chance: 50, color: '#feca57' },
+        { label: '/3', value: '/3', chance: 35, color: '#48dbfb' },
+        { label: '-1000', value: -1000, chance: 35, color: '#ff9ff3' },
+        { label: '-10000', value: -10000, chance: 35, color: '#54a0ff' },
     ];
 
     const fullWheel = [
         ...wheelOptions,
         ...wheelOptions,
-        { label: '0', value: 0, chance: 75 },
-        { label: '0', value: 0, chance: 75 },
+        { label: '0', value: 0, chance: 75, color: '#5f27cd' },
+        { label: '0', value: 0, chance: 75, color: '#ff6b6b' },
     ];
 
     useEffect(() => {
@@ -61,7 +63,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
         }
     };
 
-    const spin = async () => {
+    const spin = useCallback(async () => {
         if (isSpinning) return;
 
         let cost = 0;
@@ -92,7 +94,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
         setTimeout(() => {
             handleSpinResult(fullWheel[selectedIndex], cost);
         }, spinDuration);
-    };
+    }, [isSpinning, freeSpins, betAmount, balance, fullWheel]);
 
     const handleSpinResult = async (result, cost) => {
         let winAmount = 0;
@@ -131,7 +133,10 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             }
             const data = await response.json();
             setBalance(data.new_balance);
-            onBalanceUpdate(data.new_balance); // Update parent component's balance
+            onBalanceUpdate(data.new_balance);
+
+            setLastWins(prevWins => [winAmount, ...prevWins.slice(0, 4)]);
+            setSpinHistory(prevHistory => [result, ...prevHistory.slice(0, 9)]);
 
             if (winAmount > 0) {
                 toast.success(`You won ${winAmount} YARA!`);
@@ -167,7 +172,7 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             }
             const data = await response.json();
             setBalance(data.new_balance);
-            onBalanceUpdate(data.new_balance); // Update parent component's balance
+            onBalanceUpdate(data.new_balance);
             setFreeSpins(freeSpins + 1);
             toast.success('You bought 1 spin!');
         } catch (error) {
@@ -175,6 +180,20 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
             toast.error('Failed to buy spin. Please try again later.');
         }
     };
+
+    const handleKeyPress = useCallback((e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            spin();
+        }
+    }, [spin]);
+
+    useEffect(() => {
+        window.addEventListener('keydown', handleKeyPress);
+        return () => {
+            window.removeEventListener('keydown', handleKeyPress);
+        };
+    }, [handleKeyPress]);
 
     if (isLoading) {
         return <div>Loading...</div>;
@@ -211,7 +230,8 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
                             className="wheel-option"
                             style={{ 
                                 transform: `rotate(${index * (360 / fullWheel.length)}deg) translateY(-50%)`,
-                                opacity: result && result.label === option.label ? 1 : 0.5
+                                backgroundColor: option.color,
+                                opacity: result && result.label === option.label ? 1 : 0.8
                             }}
                         >
                             {option.label}
@@ -225,11 +245,33 @@ const SpinningWheel = ({ userId, onBalanceUpdate }) => {
                     Result: {result.label} ({result.chance}% chance)
                 </p>
             )}
+            <div className="game-stats">
+                <div className="last-wins">
+                    <h3>Last 5 Wins</h3>
+                    <ul>
+                        {lastWins.map((win, index) => (
+                            <li key={index} className={win > 0 ? 'win' : 'loss'}>
+                                {win > 0 ? '+' : ''}{win} YARA
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <div className="spin-history">
+                    <h3>Spin History</h3>
+                    <ul>
+                        {spinHistory.map((spin, index) => (
+                            <li key={index} style={{ color: spin.color }}>
+                                {spin.label}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
             <div className="wheel-options">
                 <h3>Wheel Options:</h3>
                 <ul>
                     {wheelOptions.map((option, index) => (
-                        <li key={index}>
+                        <li key={index} style={{ color: option.color }}>
                             {option.label} ({option.chance}% chance)
                         </li>
                     ))}

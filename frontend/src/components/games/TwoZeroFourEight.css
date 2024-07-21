@@ -19,6 +19,7 @@ h2 {
     border-radius: 6px;
     padding: 10px;
     margin-bottom: 20px;
+    touch-action: none;
 }
 
 .cell {
@@ -67,13 +68,6 @@ button:disabled {
     cursor: not-allowed;
 }
 
-.controls {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-top: 20px;
-}
-
 @media (max-width: 480px) {
     .two-zero-four-eight-game {
         padding: 10px;
@@ -91,19 +85,6 @@ button:disabled {
     button {
         padding: 8px 16px;
         font-size: 16px;
-    }
-}
-
-@media (min-width: 481px) {
-    .controls {
-        display: none;
-    }
-}
-
-/* Add touch support for mobile devices */
-@media (hover: none) and (pointer: coarse) {
-    .controls {
-        display: grid;
     }
 }
 

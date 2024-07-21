@@ -1,0 +1,140 @@
+.crash-game {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+}
+
+.balance {
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #4CAF50;
+}
+
+.game-display {
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+canvas {
+    width: 100%;
+    max-width: 400px;
+    height: 200px;
+    margin-bottom: 10px;
+}
+
+.multiplier {
+    font-size: 2em;
+    font-weight: bold;
+    color: #2196F3;
+}
+
+.crash-message {
+    color: #f44336;
+    font-weight: bold;
+}
+
+.cashout-message {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.bet-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.error {
+    color: #f44336;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.game-history {
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.game-history h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.game-history ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.game-history li {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+.game-history .win {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.game-history .loss {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.loading {
+    text-align: center;
+    font-size: 1.2em;
+    color: #333;
+}
+
+@media (max-width: 600px) {
+    .bet-controls {
+        flex-direction: column;
+    }
+
+    input[type="text"], button {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}

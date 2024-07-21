@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import './TwoZeroFourEight.css';
 
@@ -8,6 +8,9 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
     const [highestTile, setHighestTile] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const gameBoardRef = useRef(null);
+    const touchStartX = useRef(0);
+    const touchStartY = useRef(0);
 
     const initializeBoard = useCallback(() => {
         const newBoard = Array(4).fill().map(() => Array(4).fill(0));
@@ -172,34 +175,64 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
         return 0;
     };
 
-    const handleKeyDown = useCallback((e) => {
+    const handleTouchStart = (e) => {
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e) => {
         if (gameOver) return;
-        switch (e.key) {
-            case 'ArrowLeft': move('left'); break;
-            case 'ArrowRight': move('right'); break;
-            case 'ArrowUp': move('up'); break;
-            case 'ArrowDown': move('down'); break;
-            default: break;
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const dx = touchEndX - touchStartX.current;
+        const dy = touchEndY - touchStartY.current;
+
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+
+        if (Math.max(absDx, absDy) > 20) {
+            if (absDx > absDy) {
+                move(dx > 0 ? 'right' : 'left');
+            } else {
+                move(dy > 0 ? 'down' : 'up');
+            }
         }
-    }, [gameOver, move]);
+    };
 
     useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (gameOver) return;
+            switch (e.key) {
+                case 'ArrowLeft': move('left'); break;
+                case 'ArrowRight': move('right'); break;
+                case 'ArrowUp': move('up'); break;
+                case 'ArrowDown': move('down'); break;
+                default: break;
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [handleKeyDown]);
+    }, [gameOver, move]);
 
     return (
-        <div className="two-zero-four-eight-game" tabIndex="0" onKeyDown={handleKeyDown}>
+        <div className="two-zero-four-eight-game" tabIndex="0">
             <h2>2048 Game</h2>
             <p>Score: {score}</p>
             <p>Highest Tile: {highestTile}</p>
-            <div className="game-board">
+            <div 
+                className="game-board" 
+                ref={gameBoardRef}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
                 {board.map((row, i) => (
                     <div key={i} className="row">
                         {row.map((cell, j) => (
-                            <div key={`${i}-${j}`} className={`cell tile-${cell}`}>
+                            <div key={`${i}-${j}`} className={`cell tile-${cell} ${cell !== 0 ? 'new-tile' : ''}`}>
                                 {cell !== 0 && cell}
                             </div>
                         ))}
@@ -210,12 +243,6 @@ const TwoZeroFourEight = ({ userId, onBalanceUpdate }) => {
             <button onClick={initializeBoard} disabled={isLoading}>
                 {isLoading ? 'Loading...' : 'New Game'}
             </button>
-            <div className="controls">
-                <button onClick={() => move('up')}>Up</button>
-                <button onClick={() => move('left')}>Left</button>
-                <button onClick={() => move('right')}>Right</button>
-                <button onClick={() => move('down')}>Down</button>
-            </div>
         </div>
     );
 };

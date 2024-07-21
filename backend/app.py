@@ -12,6 +12,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(80), unique=True, nullable=False)
@@ -46,7 +49,15 @@ def check_and_create_user():
     
     if not user:
         referral_link = data.get('referral_link')
-        referrer = User.query.filter_by(referral_code=referral_link.split('=')[-1]).first() if referral_link else None
+        referral_code = referral_link.split('start=')[-1] if referral_link else None
+        referrer = User.query.filter_by(referral_code=referral_code).first() if referral_code else None
+        
+        if referral_link:
+            app.logger.info(f"Processing referral link: {referral_link}")
+            if referrer:
+                app.logger.info(f"Found referrer: {referrer.username}")
+            else:
+                app.logger.warning(f"No referrer found for code: {referral_code}")
         
         new_user = User(
             user_id=data['user_id'],
@@ -59,6 +70,11 @@ def check_and_create_user():
             referrer.balance += 1000  # Bonus for referrer
             new_referral = Referral(referrer_id=referrer.id, referred_id=new_user.id)
             db.session.add(new_referral)
+            db.session.flush()  # This will assign an ID to new_referral if successful
+            if new_referral.id:
+                app.logger.info(f"Created new referral relationship: {referrer.username} referred {new_user.username}")
+            else:
+                app.logger.error("Failed to create referral relationship")
         
         db.session.commit()
         app.logger.info(f"Created new user: {new_user.username}")
@@ -105,6 +121,35 @@ def claim_tokens():
         else:
             return jsonify({'error': 'Cannot claim yet'}), 400
     return jsonify({'error': 'User not found'}), 404
+
+@app.route('/api/update_balance', methods=['POST'])
+def update_balance():
+    data = request.json
+    user_id = data.get('user_id')
+    amount = data.get('amount')
+
+    if not user_id or amount is None:
+        return jsonify({'error': 'Missing user_id or amount'}), 400
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    try:
+        amount = float(amount)
+    except ValueError:
+        return jsonify({'error': 'Invalid amount'}), 400
+
+    user.balance += amount
+    if user.balance < 0:
+        user.balance = 0  # Ensure balance doesn't go negative
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'new_balance': user.balance
+    })
 
 @app.route('/api/solve_cipher', methods=['POST'])
 def solve_cipher():
