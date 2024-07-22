@@ -136,8 +136,8 @@ function App() {
                 },
                 body: JSON.stringify({
                     user_id: telegramUser.id.toString(),
-                    username: telegramUser.username || `User${telegramUser.id}`
-
+                    username: telegramUser.username || `User${telegramUser.id}`,
+                    referral_code: window.Telegram.WebApp.initDataUnsafe.start_param || null
                 }),
             });
     
