@@ -11,6 +11,8 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
 
     useEffect(() => {
         fetchCipherStatus();
+        const interval = setInterval(fetchCipherStatus, 60000); // Check every minute
+        return () => clearInterval(interval);
     }, [userId]);
 
     const fetchCipherStatus = async () => {
@@ -36,7 +38,7 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
 
     const checkSolution = async () => {
         if (solved) {
-            setMessage("You've already solved this cipher. Wait for the next one.");
+            setMessage("You've already solved today's cipher. The next one will be available at 12 PM UTC.");
             return;
         }
 
@@ -69,7 +71,16 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
         }
     };
 
-    const canSolveCipher = nextAvailableTime ? new Date() >= new Date(nextAvailableTime) : true;
+    const formatTimeLeft = () => {
+        if (!nextAvailableTime) return '';
+        const now = new Date();
+        const next = new Date(nextAvailableTime);
+        const diff = next - now;
+        if (diff <= 0) return 'Available now!';
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        return `Next cipher in ${hours}h ${minutes}m`;
+    };
 
     if (isLoading) {
         return <div>Loading...</div>;
@@ -78,12 +89,12 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
     return (
         <div className="cipher-game">
             <h2>Cipher Game</h2>
-            <p>Instructions: Solve the cipher presented. Enter your solution below.</p>
+            <p>Instructions: Solve the daily cipher. Enter your solution below.</p>
             <p>Total reward for correct solution: {reward} YARA</p>
             {solved ? (
                 <div>
-                    <p>You have already solved this cipher. Please come back at 12:00 UTC for the next one.</p>
-                    <p>Next available time to solve: {new Date(nextAvailableTime).toLocaleString()}</p>
+                    <p>You have already solved today's cipher. The next one will be available at 12:00 UTC.</p>
+                    <p>{formatTimeLeft()}</p>
                 </div>
             ) : (
                 <div>
@@ -95,14 +106,14 @@ const Cipher = ({ userId, onBalanceUpdate }) => {
                                 maxLength="1"
                                 value={input}
                                 onChange={(e) => handleInputChange(index, e.target.value)}
-                                disabled={!canSolveCipher}
                             />
                         ))}
                     </div>
-                    <button onClick={checkSolution} disabled={!canSolveCipher || isLoading}>
+                    <button onClick={checkSolution} disabled={isLoading}>
                         {isLoading ? 'Checking...' : 'Check Solution'}
                     </button>
                     {message && <p className={`message ${message.includes('Congratulations') ? 'success' : 'error'}`}>{message}</p>}
+                    <p>{formatTimeLeft()}</p>
                 </div>
             )}
         </div>

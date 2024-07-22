@@ -45,19 +45,21 @@ def check_and_create_user():
     data = request.json
     app.logger.info(f"Received request to check/create user: {data}")
 
+    # Log the entire request data
+    app.logger.info(f"Full request data: {request.data}")
+
+    # Log headers to check for any Telegram-specific information
+    app.logger.info(f"Request headers: {request.headers}")
+
     user = User.query.filter_by(user_id=data['user_id']).first()
 
     if not user:
-        referral_link = data.get('referral_link')
-        app.logger.info(f"Referral link received: {referral_link}")
+        referral_code = data.get('referral_code')
+        app.logger.info(f"Referral code received in request: {referral_code}")
 
-        referral_code = None
-        if referral_link:
-            try:
-                referral_code = referral_link.split('start=')[-1]
-                app.logger.info(f"Extracted referral code: {referral_code}")
-            except Exception as e:
-                app.logger.error(f"Failed to extract referral code: {str(e)}")
+        # Log the start parameter separately if it's coming from Telegram
+        start_param = data.get('start_param')
+        app.logger.info(f"Start parameter from Telegram: {start_param}")
 
         referrer = None
         if referral_code:
@@ -70,18 +72,19 @@ def check_and_create_user():
             referral_code=generate_referral_code()
         )
         db.session.add(new_user)
+        db.session.flush()  # This will assign an ID to new_user
         app.logger.info(f"Created new user: {new_user.username} with referral code: {new_user.referral_code}")
 
         if referrer:
             try:
-                referrer.balance += 1000  # Bonus for referrer
+                referrer.balance += 2000  # Bonus for referrer
                 new_referral = Referral(referrer_id=referrer.id, referred_id=new_user.id)
                 db.session.add(new_referral)
-                db.session.flush()
                 app.logger.info(f"Created new referral relationship: {referrer.username} referred {new_user.username}")
             except Exception as e:
                 app.logger.error(f"Failed to create referral relationship: {str(e)}")
                 db.session.rollback()
+                return jsonify({'error': 'Failed to create referral relationship'}), 500
 
         try:
             db.session.commit()
@@ -95,7 +98,8 @@ def check_and_create_user():
     else:
         app.logger.info(f"Found existing user: {user.username}")
 
-    return jsonify({
+    # Log the response being sent back
+    response_data = {
         'user_id': user.user_id,
         'username': user.username,
         'balance': user.balance,
@@ -103,7 +107,10 @@ def check_and_create_user():
         'cipher_solved': user.cipher_solved,
         'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None,
         'referral_link': f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
-    })
+    }
+    app.logger.info(f"Sending response: {response_data}")
+
+    return jsonify(response_data)
 
 @app.route('/api/user/<user_id>', methods=['GET'])
 def get_user(user_id):
@@ -178,7 +185,22 @@ def update_balance():
     })
 
 @app.route('/api/solve_cipher', methods=['POST'])
+def reset_cipher_status():
+    current_time = datetime.utcnow()
+    users_to_reset = User.query.filter(
+        User.cipher_solved == True,
+        User.next_cipher_time <= current_time
+    ).all()
+
+    for user in users_to_reset:
+        user.cipher_solved = False
+        user.next_cipher_time = None
+
+    db.session.commit()
+    app.logger.info(f"Reset cipher status for {len(users_to_reset)} users")
+
 def solve_cipher():
+    reset_cipher_status()
     data = request.json
     app.logger.info(f"Cipher solve attempt for user_id: {data['user_id']}")
     user = User.query.filter_by(user_id=data['user_id']).first()
