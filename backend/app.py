@@ -44,19 +44,26 @@ def generate_referral_code():
 def check_and_create_user():
     data = request.json
     app.logger.info(f"Received request to check/create user: {data}")
-    
+
     user = User.query.filter_by(user_id=data['user_id']).first()
-    
+
     if not user:
         referral_link = data.get('referral_link')
         app.logger.info(f"Referral link received: {referral_link}")
-        
-        referral_code = referral_link.split('start=')[-1] if referral_link else None
-        app.logger.info(f"Extracted referral code: {referral_code}")
-        
-        referrer = User.query.filter_by(referral_code=referral_code).first() if referral_code else None
-        app.logger.info(f"Found referrer: {referrer.username if referrer else 'None'}")
-        
+
+        referral_code = None
+        if referral_link:
+            try:
+                referral_code = referral_link.split('start=')[-1]
+                app.logger.info(f"Extracted referral code: {referral_code}")
+            except Exception as e:
+                app.logger.error(f"Failed to extract referral code: {str(e)}")
+
+        referrer = None
+        if referral_code:
+            referrer = User.query.filter_by(referral_code=referral_code).first()
+            app.logger.info(f"Found referrer: {referrer.username if referrer else 'None'}")
+
         new_user = User(
             user_id=data['user_id'],
             username=data['username'],
@@ -64,7 +71,7 @@ def check_and_create_user():
         )
         db.session.add(new_user)
         app.logger.info(f"Created new user: {new_user.username} with referral code: {new_user.referral_code}")
-        
+
         if referrer:
             try:
                 referrer.balance += 1000  # Bonus for referrer
@@ -75,7 +82,7 @@ def check_and_create_user():
             except Exception as e:
                 app.logger.error(f"Failed to create referral relationship: {str(e)}")
                 db.session.rollback()
-        
+
         try:
             db.session.commit()
             app.logger.info(f"Successfully committed new user and referral data")
@@ -83,11 +90,11 @@ def check_and_create_user():
             app.logger.error(f"Failed to commit new user data: {str(e)}")
             db.session.rollback()
             return jsonify({'error': 'Failed to create user'}), 500
-        
+
         user = new_user
     else:
         app.logger.info(f"Found existing user: {user.username}")
-    
+
     return jsonify({
         'user_id': user.user_id,
         'username': user.username,
@@ -213,9 +220,9 @@ def get_referrals(user_id):
     if user:
         referrals = User.query.join(Referral, Referral.referred_id == User.id).filter(Referral.referrer_id == user.id).all()
         claimable_amount = calculate_claimable_amount(user)
-        
+
         referral_link = f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
-        
+
         referral_data = {
             'referral_code': user.referral_code,
             'referral_link': referral_link,

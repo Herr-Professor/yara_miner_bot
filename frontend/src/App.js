@@ -8,7 +8,7 @@ import TaskList from './components/TaskList';
 import Username from './components/Username';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
-import Cipher from './Cipher';
+import Cipher from './components/Cipher';
 import { TelegramContext } from './context/TelegramContext';
 import './App.css';
 
@@ -137,7 +137,7 @@ function App() {
                 body: JSON.stringify({
                     user_id: telegramUser.id.toString(),
                     username: telegramUser.username || `User${telegramUser.id}`
-                    
+
                 }),
             });
     
