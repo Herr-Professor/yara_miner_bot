@@ -127,6 +127,11 @@ function App() {
         }
     
         console.log("Attempting to fetch user data for:", telegramUser.id);
+        console.log("Telegram WebApp initData:", window.Telegram.WebApp.initData);
+        console.log("Telegram WebApp initDataUnsafe:", window.Telegram.WebApp.initDataUnsafe);
+    
+        const referralCode = window.Telegram.WebApp.initDataUnsafe.start_param || null;
+        console.log("Referral code from start_param:", referralCode);
     
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/api/user/check_and_create', {
@@ -137,7 +142,8 @@ function App() {
                 body: JSON.stringify({
                     user_id: telegramUser.id.toString(),
                     username: telegramUser.username || `User${telegramUser.id}`,
-                    referral_code: window.Telegram.WebApp.initDataUnsafe.start_param || null
+                    referral_code: referralCode,
+                    start_param: window.Telegram.WebApp.initDataUnsafe.start_param
                 }),
             });
     

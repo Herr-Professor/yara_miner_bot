@@ -41,7 +41,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
             const data = await response.json();
             setReferralLink(data.referral_link);
             setLastClaimTime(data.last_claim_time);
-            setReferrals(data.referrals);
+            setReferrals(data.referrals || []); // Use an empty array if no referrals
         } catch (error) {
             console.error('Failed to fetch referral data:', error);
             toast.error('Failed to fetch referral data');
@@ -49,7 +49,7 @@ function ReferralSystem({ userId, balance, setBalance }) {
             setIsLoading(false);
         }
     };
-
+    
     const copyToClipboard = (text, message) => {
         navigator.clipboard.writeText(text)
             .then(() => toast.success(message))
