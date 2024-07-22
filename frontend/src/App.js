@@ -5,10 +5,10 @@ import 'react-toastify/dist/ReactToastify.css';
 import Balance from './components/Balance';
 import ClaimButton from './components/ClaimButton';
 import TaskList from './components/TaskList';
-import Games from './components/Games';
 import Username from './components/Username';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
+import Cipher from './Cipher';
 import { TelegramContext } from './context/TelegramContext';
 import './App.css';
 
@@ -19,6 +19,8 @@ function App() {
     const [nextClaimTime, setNextClaimTime] = useState(null);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
+    const [cipherStatus, setCipherStatus] = useState({ solved: false, nextAvailableTime: null });
+    const [timeLeft, setTimeLeft] = useState('');
     
     const tg = window.Telegram.WebApp;
     const theme = {
@@ -53,6 +55,27 @@ function App() {
         }
     }, [nextClaimTime]);
 
+    useEffect(() => {
+        let timer;
+        if (cipherStatus.nextAvailableTime) {
+            timer = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = new Date(cipherStatus.nextAvailableTime).getTime() - now;
+                
+                if (distance < 0) {
+                    setTimeLeft('Available now!');
+                    clearInterval(timer);
+                } else {
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+                }
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [cipherStatus.nextAvailableTime]);
+
     const handleClaim = async () => {
         if (!user) return;
     
@@ -69,13 +92,31 @@ function App() {
                 setBalance(data.new_balance);
                 setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
                 setMiningProgress(0);
-                return true; // Indicate success
+                return true;
             } else {
                 throw new Error(data.error || 'Failed to claim tokens');
             }
         } catch (error) {
             console.error('Failed to claim tokens:', error);
-            throw error; // Rethrow the error to be caught in the ClaimButton component
+            throw error;
+        }
+    };
+
+    const fetchCipherStatus = async () => {
+        if (!user) return;
+        try {
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${user.user_id}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch cipher status');
+            }
+            const userData = await response.json();
+            setCipherStatus({
+                solved: userData.cipher_solved,
+                nextAvailableTime: userData.next_cipher_time
+            });
+        } catch (error) {
+            console.error('Failed to fetch cipher status:', error);
+            toast.error('Failed to fetch cipher status. Please try again later.');
         }
     };
 
@@ -96,6 +137,7 @@ function App() {
                 body: JSON.stringify({
                     user_id: telegramUser.id.toString(),
                     username: telegramUser.username || `User${telegramUser.id}`
+                    
                 }),
             });
     
@@ -113,6 +155,10 @@ function App() {
             setUser(userData);
             setBalance(userData.balance);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
+            setCipherStatus({
+                solved: userData.cipher_solved,
+                nextAvailableTime: userData.next_cipher_time
+            });
         } catch (error) {
             console.error('Failed to fetch user data:', error);
             toast.error(`Failed to fetch user data: ${error.message}`);
@@ -142,7 +188,7 @@ function App() {
 
     const tabs = [
         { id: 'main', icon: 'fa-home', label: 'Main' },
-        { id: 'games', icon: 'fa-gamepad', label: 'Games' },
+        { id: 'cipher', icon: 'fa-lock', label: 'Cipher' },
         { id: 'leaderboard', icon: 'fa-trophy', label: 'Leaderboard' },
         { id: 'referral', icon: 'fa-user-plus', label: 'Referral' },
     ];
@@ -183,12 +229,34 @@ function App() {
                                     />
                                 </div>
                                 <TaskList />
+                                <div className="cipher-game">
+                                    <h3>Cipher Game</h3>
+                                    {cipherStatus.solved ? (
+                                        <p>Next available: {timeLeft}</p>
+                                    ) : (
+                                        <>
+                                            <p>{timeLeft}</p>
+                                            <button 
+                                                onClick={() => setActiveTab('cipher')}
+                                                disabled={cipherStatus.nextAvailableTime && new Date() < new Date(cipherStatus.nextAvailableTime)}
+                                            >
+                                                Play Cipher
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </>
                         ) : (
                             <p>Loading user data...</p>
                         )
                     )}
-                    {item === 'games' && user && <Games userId={user.user_id} onBalanceUpdate={setBalance} />}
+                    {item === 'cipher' && user && (
+                        <Cipher 
+                            userId={user.user_id} 
+                            onBalanceUpdate={setBalance}
+                            onGameComplete={fetchCipherStatus}
+                        />
+                    )}
                     {item === 'leaderboard' && <Leaderboard />}
                     {item === 'referral' && user && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
                 </animated.div>

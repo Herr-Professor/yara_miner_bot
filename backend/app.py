@@ -49,15 +49,13 @@ def check_and_create_user():
     
     if not user:
         referral_link = data.get('referral_link')
-        referral_code = referral_link.split('start=')[-1] if referral_link else None
-        referrer = User.query.filter_by(referral_code=referral_code).first() if referral_code else None
+        app.logger.info(f"Referral link received: {referral_link}")
         
-        if referral_link:
-            app.logger.info(f"Processing referral link: {referral_link}")
-            if referrer:
-                app.logger.info(f"Found referrer: {referrer.username}")
-            else:
-                app.logger.warning(f"No referrer found for code: {referral_code}")
+        referral_code = referral_link.split('start=')[-1] if referral_link else None
+        app.logger.info(f"Extracted referral code: {referral_code}")
+        
+        referrer = User.query.filter_by(referral_code=referral_code).first() if referral_code else None
+        app.logger.info(f"Found referrer: {referrer.username if referrer else 'None'}")
         
         new_user = User(
             user_id=data['user_id'],
@@ -65,19 +63,27 @@ def check_and_create_user():
             referral_code=generate_referral_code()
         )
         db.session.add(new_user)
+        app.logger.info(f"Created new user: {new_user.username} with referral code: {new_user.referral_code}")
         
         if referrer:
-            referrer.balance += 1000  # Bonus for referrer
-            new_referral = Referral(referrer_id=referrer.id, referred_id=new_user.id)
-            db.session.add(new_referral)
-            db.session.flush()  # This will assign an ID to new_referral if successful
-            if new_referral.id:
+            try:
+                referrer.balance += 1000  # Bonus for referrer
+                new_referral = Referral(referrer_id=referrer.id, referred_id=new_user.id)
+                db.session.add(new_referral)
+                db.session.flush()
                 app.logger.info(f"Created new referral relationship: {referrer.username} referred {new_user.username}")
-            else:
-                app.logger.error("Failed to create referral relationship")
+            except Exception as e:
+                app.logger.error(f"Failed to create referral relationship: {str(e)}")
+                db.session.rollback()
         
-        db.session.commit()
-        app.logger.info(f"Created new user: {new_user.username}")
+        try:
+            db.session.commit()
+            app.logger.info(f"Successfully committed new user and referral data")
+        except Exception as e:
+            app.logger.error(f"Failed to commit new user data: {str(e)}")
+            db.session.rollback()
+            return jsonify({'error': 'Failed to create user'}), 500
+        
         user = new_user
     else:
         app.logger.info(f"Found existing user: {user.username}")
@@ -94,8 +100,10 @@ def check_and_create_user():
 
 @app.route('/api/user/<user_id>', methods=['GET'])
 def get_user(user_id):
+    app.logger.info(f"Fetching user data for user_id: {user_id}")
     user = User.query.filter_by(user_id=user_id).first()
     if user:
+        app.logger.info(f"User found: {user.username}")
         return jsonify({
             'user_id': user.user_id,
             'username': user.username,
@@ -104,11 +112,13 @@ def get_user(user_id):
             'cipher_solved': user.cipher_solved,
             'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None
         })
+    app.logger.warning(f"User not found for user_id: {user_id}")
     return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/claim', methods=['POST'])
 def claim_tokens():
     data = request.json
+    app.logger.info(f"Claim request received for user_id: {data['user_id']}")
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if user.last_claim is None or datetime.utcnow() - user.last_claim >= timedelta(hours=8):
@@ -117,9 +127,12 @@ def claim_tokens():
             user.last_claim = datetime.utcnow()
             update_user_earnings(user, claim_amount)
             db.session.commit()
+            app.logger.info(f"Claim successful for {user.username}. New balance: {user.balance}")
             return jsonify({'success': True, 'new_balance': user.balance})
         else:
+            app.logger.info(f"Claim attempt too soon for {user.username}")
             return jsonify({'error': 'Cannot claim yet'}), 400
+    app.logger.warning(f"User not found for claim request: {data['user_id']}")
     return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/update_balance', methods=['POST'])
@@ -128,16 +141,21 @@ def update_balance():
     user_id = data.get('user_id')
     amount = data.get('amount')
 
+    app.logger.info(f"Balance update request for user_id: {user_id}, amount: {amount}")
+
     if not user_id or amount is None:
+        app.logger.warning("Missing user_id or amount in balance update request")
         return jsonify({'error': 'Missing user_id or amount'}), 400
 
     user = User.query.filter_by(user_id=user_id).first()
     if not user:
+        app.logger.warning(f"User not found for balance update: {user_id}")
         return jsonify({'error': 'User not found'}), 404
 
     try:
         amount = float(amount)
     except ValueError:
+        app.logger.warning(f"Invalid amount for balance update: {amount}")
         return jsonify({'error': 'Invalid amount'}), 400
 
     user.balance += amount
@@ -145,6 +163,7 @@ def update_balance():
         user.balance = 0  # Ensure balance doesn't go negative
 
     db.session.commit()
+    app.logger.info(f"Balance updated for {user.username}. New balance: {user.balance}")
 
     return jsonify({
         'success': True,
@@ -154,6 +173,7 @@ def update_balance():
 @app.route('/api/solve_cipher', methods=['POST'])
 def solve_cipher():
     data = request.json
+    app.logger.info(f"Cipher solve attempt for user_id: {data['user_id']}")
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if not user.cipher_solved and (user.next_cipher_time is None or datetime.utcnow() >= user.next_cipher_time):
@@ -167,32 +187,36 @@ def solve_cipher():
                 user.next_cipher_time = next_time
                 update_user_earnings(user, reward_amount)
                 db.session.commit()
+                app.logger.info(f"Cipher solved successfully by {user.username}. New balance: {user.balance}")
                 return jsonify({'success': True, 'new_balance': user.balance})
             else:
+                app.logger.info(f"Incorrect cipher solution by {user.username}")
                 return jsonify({'error': 'Incorrect solution'}), 400
         else:
+            app.logger.info(f"Cipher already solved or not available for {user.username}")
             return jsonify({'error': 'Cipher already solved or not available'}), 400
+    app.logger.warning(f"User not found for cipher solve attempt: {data['user_id']}")
     return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
+    app.logger.info("Fetching leaderboard")
     leaders = User.query.order_by(User.balance.desc()).limit(10).all()
-    return jsonify([
-        {'username': leader.username, 'balance': leader.balance}
-        for leader in leaders
-    ])
+    leaderboard = [{'username': leader.username, 'balance': leader.balance} for leader in leaders]
+    app.logger.info(f"Leaderboard fetched: {leaderboard}")
+    return jsonify(leaderboard)
 
 @app.route('/api/referrals/<user_id>', methods=['GET'])
 def get_referrals(user_id):
+    app.logger.info(f"Fetching referrals for user_id: {user_id}")
     user = User.query.filter_by(user_id=user_id).first()
     if user:
         referrals = User.query.join(Referral, Referral.referred_id == User.id).filter(Referral.referrer_id == user.id).all()
         claimable_amount = calculate_claimable_amount(user)
         
-        # Generate Telegram-specific referral link
         referral_link = f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
         
-        return jsonify({
+        referral_data = {
             'referral_code': user.referral_code,
             'referral_link': referral_link,
             'last_claim_time': user.last_referral_claim.isoformat() if user.last_referral_claim else None,
@@ -205,10 +229,14 @@ def get_referrals(user_id):
                 }
                 for referral in referrals
             ]
-        })
+        }
+        app.logger.info(f"Referral data for {user.username}: {referral_data}")
+        return jsonify(referral_data)
+    app.logger.warning(f"User not found for referral data request: {user_id}")
     return jsonify({'error': 'User not found'}), 404
 
 def calculate_claimable_amount(user):
+    app.logger.info(f"Calculating claimable amount for {user.username}")
     referrals = Referral.query.filter_by(referrer_id=user.id).all()
     total_claimable = 0
     current_time = datetime.utcnow()
@@ -227,14 +255,18 @@ def calculate_claimable_amount(user):
             referred_user.last_earnings_update = current_time
 
     db.session.commit()
+    app.logger.info(f"Claimable amount for {user.username}: {total_claimable}")
     return total_claimable
 
 def calculate_earnings(referred_user):
+    app.logger.info(f"Calculating earnings for referred user: {referred_user.username}")
     if referred_user.last_earnings_update is None:
+        app.logger.info(f"No previous earnings update for {referred_user.username}")
         return referred_user.daily_earnings
 
     time_since_last_update = datetime.utcnow() - referred_user.last_earnings_update
     if time_since_last_update < timedelta(days=1):
+        app.logger.info(f"Less than a day since last update for {referred_user.username}")
         return referred_user.daily_earnings
 
     # If it's been more than a day, return the daily earnings and reset
@@ -242,19 +274,23 @@ def calculate_earnings(referred_user):
     referred_user.daily_earnings = 0
     referred_user.last_earnings_update = datetime.utcnow()
     db.session.commit()
+    app.logger.info(f"Earnings calculated for {referred_user.username}: {earnings}")
     return earnings
 
 def update_user_earnings(user, amount):
+    app.logger.info(f"Updating earnings for {user.username}, amount: {amount}")
     if user.last_earnings_update is None or datetime.utcnow() - user.last_earnings_update >= timedelta(days=1):
         user.daily_earnings = amount
     else:
         user.daily_earnings += amount
     user.last_earnings_update = datetime.utcnow()
     db.session.commit()
+    app.logger.info(f"Updated daily earnings for {user.username}: {user.daily_earnings}")
 
 @app.route('/api/claim_referrals', methods=['POST'])
 def claim_referral_rewards():
     data = request.json
+    app.logger.info(f"Referral claim request for user_id: {data['user_id']}")
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if user.last_referral_claim is None or datetime.utcnow() - user.last_referral_claim >= timedelta(days=1):
@@ -264,11 +300,15 @@ def claim_referral_rewards():
                 user.balance += claimable_amount
                 user.last_referral_claim = datetime.utcnow()
                 db.session.commit()
+                app.logger.info(f"Referral claim successful for {user.username}. Claimed amount: {claimable_amount}")
                 return jsonify({'success': True, 'new_balance': user.balance, 'reward': claimable_amount})
             else:
+                app.logger.info(f"No rewards to claim for {user.username}")
                 return jsonify({'error': 'No rewards to claim'}), 400
         else:
+            app.logger.info(f"Cannot claim referral rewards yet for {user.username}")
             return jsonify({'error': 'Cannot claim referral rewards yet'}), 400
+    app.logger.warning(f"User not found for referral claim: {data['user_id']}")
     return jsonify({'error': 'User not found'}), 404
 
 if __name__ == '__main__':
