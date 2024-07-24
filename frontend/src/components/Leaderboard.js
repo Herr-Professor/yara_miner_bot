@@ -41,7 +41,7 @@ function Leaderboard() {
                             <span className="player-name">
                                 {leader.username ? ` ${leader.username}` : 'Unknown'}
                             </span>
-                            <span className="player-balance">{leader.balance.toFixed(2)} YARA</span>
+                            <span className="player-balance">{leader.balance.toFixed(2)} </span>
                         </li>
                     ))}
                 </ul>

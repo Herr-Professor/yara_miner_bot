@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { Snackbar, Alert } from '@mui/material';
 
 function Store({ userId, balance, setBalance }) {
     const [items, setItems] = useState([]);
     const [tonConnectUI] = useTonConnectUI();
     const userFriendlyAddress = useTonAddress();
+    const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
     useEffect(() => {
         fetchStoreItems();
@@ -16,24 +18,6 @@ function Store({ userId, balance, setBalance }) {
             updateWalletAddress(userFriendlyAddress);
         }
     }, [userFriendlyAddress, userId]);
-
-    useEffect(() => {
-        const connectStoredWallet = async () => {
-            try {
-                const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch user data');
-                }
-                const userData = await response.json();
-                if (userData.wallet_address) {
-                    await tonConnectUI.connectWallet();
-                }
-            } catch (error) {
-                console.error('Error connecting stored wallet:', error);
-            }
-        };
-        connectStoredWallet();
-    }, [userId, tonConnectUI]);
 
     const updateWalletAddress = async (address) => {
         try {
@@ -62,13 +46,13 @@ function Store({ userId, balance, setBalance }) {
             setItems(items);
         } catch (error) {
             console.error('Error fetching store items:', error);
-            // You might want to show an error message to the user here
+            showNotification('Failed to load store items', 'error');
         }
     };
 
     const handlePurchase = async (item) => {
         if (!userFriendlyAddress) {
-            alert("Please connect your TON wallet first.");
+            showNotification('Please connect your TON wallet first', 'warning');
             return;
         }
 
@@ -84,11 +68,22 @@ function Store({ userId, balance, setBalance }) {
 
             const result = await tonConnectUI.sendTransaction(transaction);
             if (result) {
-                alert(`Successfully purchased ${item.name}`);
+                showNotification(`Successfully purchased ${item.name}`, 'success');
             }
         } catch (error) {
-            alert('Purchase failed. Please try again.');
+            showNotification('Purchase failed. Please try again.', 'error');
         }
+    };
+
+    const showNotification = (message, severity) => {
+        setNotification({ open: true, message, severity });
+    };
+
+    const handleCloseNotification = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setNotification({ ...notification, open: false });
     };
 
     return (
@@ -104,6 +99,11 @@ function Store({ userId, balance, setBalance }) {
                     </div>
                 ))}
             </div>
+            <Snackbar open={notification.open} autoHideDuration={6000} onClose={handleCloseNotification}>
+                <Alert onClose={handleCloseNotification} severity={notification.severity} sx={{ width: '100%' }}>
+                    {notification.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 }
