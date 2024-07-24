@@ -87,7 +87,6 @@ function Store({ userId, balance, setBalance }) {
                 alert(`Successfully purchased ${item.name}`);
             }
         } catch (error) {
-            console.error('Purchase failed:', error);
             alert('Purchase failed. Please try again.');
         }
     };
