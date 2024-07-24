@@ -156,9 +156,9 @@ def claim_tokens():
 @app.route('/api/store/items', methods=['GET'])
 def get_store_items():
     items = [
-        {"id": 1, "name": "Boost 1", "description": "You will be able to an x2 multiplier on your Mining speed", "price": 0.2},
-        {"id": 2, "name": "Boost 2", "description": "You will be able to an x3 multiplier on your Mining speed", "price": 0.3},
-        {"id": 3, "name": "Boost 3", "description": "You will be able to an x5 multiplier on your Mining speed", "price": 0.5},
+        {"id": 1, "name": "Boost 1", "description": "x2 multiplier on your Mining speed", "price": 0.2},
+        {"id": 2, "name": "Boost 2", "description": "x3 multiplier on your Mining speed", "price": 0.3},
+        {"id": 3, "name": "Boost 3", "description": "x5 multiplier on your Mining speed", "price": 0.5},
         # Add more items as needed
     ]
     return jsonify(items)
