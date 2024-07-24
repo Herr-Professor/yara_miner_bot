@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_migrate import Migrate
 from datetime import datetime, timedelta
 import logging
 import random
@@ -11,6 +12,7 @@ CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yara_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +29,7 @@ class User(db.Model):
     referral_code = db.Column(db.String(10), unique=True, nullable=False)
     daily_earnings = db.Column(db.Float, default=0)
     last_earnings_update = db.Column(db.DateTime)
+    wallet_address = db.Column(db.String(255))
 
 class Referral(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -124,7 +127,8 @@ def get_user(user_id):
             'balance': user.balance,
             'last_claim': user.last_claim.isoformat() if user.last_claim else None,
             'cipher_solved': user.cipher_solved,
-            'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None
+            'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None,
+            'wallet_address': user.wallet_address  # Add this field to the response
         })
     app.logger.warning(f"User not found for user_id: {user_id}")
     return jsonify({'error': 'User not found'}), 404
@@ -147,6 +151,34 @@ def claim_tokens():
             app.logger.info(f"Claim attempt too soon for {user.username}")
             return jsonify({'error': 'Cannot claim yet'}), 400
     app.logger.warning(f"User not found for claim request: {data['user_id']}")
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/api/store/items', methods=['GET'])
+def get_store_items():
+    items = [
+        {"id": 1, "name": "Item 1", "description": "Description 1", "price": 10},
+        {"id": 2, "name": "Item 2", "description": "Description 2", "price": 20},
+        {"id": 3, "name": "Item 3", "description": "Description 3", "price": 30},
+        # Add more items as needed
+    ]
+    return jsonify(items)
+
+@app.route('/api/user/update_wallet', methods=['POST'])
+def update_user_wallet():
+    data = request.json
+    user_id = data.get('user_id')
+    wallet_address = data.get('wallet_address')
+
+    app.logger.info(f"Updating wallet address for user_id: {user_id}")
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if user:
+        user.wallet_address = wallet_address
+        db.session.commit()
+        app.logger.info(f"Wallet address updated for {user.username}")
+        return jsonify({'success': True})
+    
+    app.logger.warning(f"User not found for wallet update: {user_id}")
     return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/update_balance', methods=['POST'])

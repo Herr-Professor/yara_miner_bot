@@ -9,7 +9,9 @@ import Username from './components/Username';
 import Leaderboard from './components/Leaderboard';
 import ReferralSystem from './components/ReferralSystem';
 import Cipher from './components/Cipher';
+import Store from './components/Store';
 import { TelegramContext } from './context/TelegramContext';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import './App.css';
 
 function App() {
@@ -197,78 +199,88 @@ function App() {
         { id: 'cipher', icon: 'fa-lock', label: 'Cipher' },
         { id: 'leaderboard', icon: 'fa-trophy', label: 'Leaderboard' },
         { id: 'referral', icon: 'fa-user-plus', label: 'Referral' },
+        { id: 'store', icon: 'fa-store', label: 'Store' },
     ];
 
     return (
-        <div className="App" style={{
-            backgroundColor: theme.bg_color,
-            color: theme.text_color
-        }}>
-            <nav className="tab-navigation">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-                        style={{
-                            backgroundColor: theme.button_color,
-                            color: theme.button_text_color
-                        }}
-                    >
-                        <i className={`fas ${tab.icon}`}></i>
-                        <span className="tab-label">{tab.label}</span>
-                    </button>
+        <TonConnectUIProvider manifestUrl="https://yara-miner-bot.vercel.app/tonconnect-manifest.json">
+            <div className="App" style={{
+                backgroundColor: theme.bg_color,
+                color: theme.text_color
+            }}>
+                <nav className="tab-navigation">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                            style={{
+                                backgroundColor: theme.button_color,
+                                color: theme.button_text_color
+                            }}
+                        >
+                            <i className={`fas ${tab.icon}`}></i>
+                            <span className="tab-label">{tab.label}</span>
+                        </button>
+                    ))}
+                </nav>
+                {transitions((style, item) => (
+                    <animated.div style={style} className="tab-content">
+                        {item === 'main' && (
+                            user ? (
+                                <>
+                                    <Username username={user.username} />
+                                    <div className="balance-claim-container">
+                                        <Balance balance={balance} />
+                                        <ClaimButton 
+                                            onClaim={handleClaim} 
+                                            nextClaimTime={nextClaimTime}
+                                            miningProgress={miningProgress}
+                                        />
+                                    </div>
+                                    <TaskList />
+                                    <div className="cipher-game">
+                                        <h3>Cipher Game</h3>
+                                        {cipherStatus.solved ? (
+                                            <p>Next available: {timeLeft}</p>
+                                        ) : (
+                                            <>
+                                                <p>{timeLeft}</p>
+                                                <button 
+                                                    onClick={() => setActiveTab('cipher')}
+                                                    disabled={cipherStatus.nextAvailableTime && new Date() < new Date(cipherStatus.nextAvailableTime)}
+                                                >
+                                                    Play Cipher
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <p>Loading user data...</p>
+                            )
+                        )}
+                        {item === 'cipher' && user && (
+                            <Cipher 
+                                userId={user.user_id} 
+                                onBalanceUpdate={setBalance}
+                                onGameComplete={fetchCipherStatus}
+                            />
+                        )}
+                        {item === 'leaderboard' && <Leaderboard />}
+                        {item === 'referral' && user && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
+                        {item === 'store' && user && (
+                            <Store 
+                                userId={user.user_id} 
+                                balance={balance} 
+                                setBalance={setBalance} 
+                            />
+                        )}
+                    </animated.div>
                 ))}
-            </nav>
-            {transitions((style, item) => (
-                <animated.div style={style} className="tab-content">
-                    {item === 'main' && (
-                        user ? (
-                            <>
-                                <Username username={user.username} />
-                                <div className="balance-claim-container">
-                                    <Balance balance={balance} />
-                                    <ClaimButton 
-                                        onClaim={handleClaim} 
-                                        nextClaimTime={nextClaimTime}
-                                        miningProgress={miningProgress}
-                                    />
-                                </div>
-                                <TaskList />
-                                <div className="cipher-game">
-                                    <h3>Cipher Game</h3>
-                                    {cipherStatus.solved ? (
-                                        <p>Next available: {timeLeft}</p>
-                                    ) : (
-                                        <>
-                                            <p>{timeLeft}</p>
-                                            <button 
-                                                onClick={() => setActiveTab('cipher')}
-                                                disabled={cipherStatus.nextAvailableTime && new Date() < new Date(cipherStatus.nextAvailableTime)}
-                                            >
-                                                Play Cipher
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <p>Loading user data...</p>
-                        )
-                    )}
-                    {item === 'cipher' && user && (
-                        <Cipher 
-                            userId={user.user_id} 
-                            onBalanceUpdate={setBalance}
-                            onGameComplete={fetchCipherStatus}
-                        />
-                    )}
-                    {item === 'leaderboard' && <Leaderboard />}
-                    {item === 'referral' && user && <ReferralSystem userId={user.user_id} balance={balance} setBalance={setBalance} />}
-                </animated.div>
-            ))}
-            <ToastContainer position="bottom-right" />
-        </div>
+                <ToastContainer position="bottom-right" />
+            </div>
+        </TonConnectUIProvider>
     );
 }
 
