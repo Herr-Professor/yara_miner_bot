@@ -58,9 +58,10 @@ function Store({ userId, balance, setBalance }) {
 
         try {
             const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 60 * 20, // Valid for 20 minutes
                 messages: [
                     {
-                        address: "UQD5lbuFFJsylbjfWRyWySDHg6TLMNPzKaLY9vLLL3crgg1l",
+                        address: "0:f995bb85149b3295b8df591c96c920c783a4cb30d3f329a2d8f6f2cb2f772b82",
                         amount: (item.price * 1e9).toString(), // Convert TON to nanotons
                     }
                 ]
@@ -71,6 +72,7 @@ function Store({ userId, balance, setBalance }) {
                 showNotification(`Successfully purchased ${item.name}`, 'success');
             }
         } catch (error) {
+            console.error('Purchase error:', error);
             showNotification('Purchase failed. Please try again.', 'error');
         }
     };
