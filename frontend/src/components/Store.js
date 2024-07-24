@@ -95,7 +95,7 @@ function Store({ userId, balance, setBalance }) {
         <div className="store">
             <h2>Store</h2>
             <TonConnectButton />
-            {userFriendlyAddress && <p>Connected: {userFriendlyAddress}</p>}
+            {userFriendlyAddress}
             <div className="store-items">
                 {items.map(item => (
                     <div key={item.id} className="store-item">
