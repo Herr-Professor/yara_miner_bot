@@ -238,7 +238,7 @@ function App() {
                                             miningProgress={miningProgress}
                                         />
                                     </div>
-                                    <TaskList />
+                                    <TaskList userId={user.user_id} onBalanceUpdate={setBalance} />
                                     <div className="cipher-game">
                                         <h3>Cipher Game</h3>
                                         {cipherStatus.solved ? (

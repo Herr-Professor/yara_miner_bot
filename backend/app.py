@@ -30,6 +30,17 @@ class User(db.Model):
     daily_earnings = db.Column(db.Float, default=0)
     last_earnings_update = db.Column(db.DateTime)
     wallet_address = db.Column(db.String(255))
+    last_ton_purchase = db.Column(db.DateTime)
+    balance_multiplier = db.Column(db.Float, default=1.0)
+    mining_multiplier = db.Column(db.Float, default=1.0)
+
+class StoreItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255))
+    price = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(10), nullable=False)  # 'TON' or 'Balance'
+    multiplier = db.Column(db.Float, nullable=False)
 
 class Referral(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -37,8 +48,58 @@ class Referral(db.Model):
     referred_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     claimed = db.Column(db.Boolean, default=False)
 
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(200), nullable=False)
+    reward = db.Column(db.Float, nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    url = db.Column(db.String(200))
+    required_count = db.Column(db.Integer, default=1)
+
+class UserTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime)
+    claimed = db.Column(db.Boolean, default=False)
+    claimed_at = db.Column(db.DateTime)
+
+def create_initial_tasks():
+    tasks = [
+        Task(description="Invite a friend", reward=500, type="referral", required_count=1),
+        Task(description="Invite 3 friends", reward=2000, type="referral", required_count=3),
+        Task(description="Invite 5 friends", reward=5000, type="referral", required_count=5),
+        Task(description="Invite 10 friends", reward=15000, type="referral", required_count=10),
+        Task(description="Join our Telegram channel", reward=200, type="telegram", url="https://t.me/your_channel"),
+        Task(description="Follow our Twitter page", reward=200, type="twitter", url="https://twitter.com/your_page"),
+        Task(description="Complete your first game", reward=100, type="game"),
+        Task(description="Reach 10,000 balance", reward=1000, type="achievement")
+    ]
+    db.session.bulk_save_objects(tasks)
+    db.session.commit()
+
+def create_initial_store_items():
+    items = [
+        StoreItem(id=1, name='Basic Multiplier', description='Double your current balance', price=10, currency='TON', multiplier=2.0),
+        StoreItem(id=2, name='Advanced Multiplier', description='Triple your current balance', price=25, currency='TON', multiplier=3.0),
+        StoreItem(id=3, name='Super Multiplier', description='Quadruple your current balance', price=50, currency='TON', multiplier=4.0),
+        StoreItem(id=4, name='Mega Multiplier', description='5x your current balance', price=100, currency='TON', multiplier=5.0),
+        StoreItem(id=5, name='Basic Miner', description='Increase mining speed by 50%', price=5000, currency='Balance', multiplier=1.5),
+        StoreItem(id=6, name='Advanced Miner', description='Double your mining speed', price=10000, currency='Balance', multiplier=2.0),
+        StoreItem(id=7, name='Super Miner', description='Triple your mining speed', price=25000, currency='Balance', multiplier=3.0),
+        StoreItem(id=8, name='Mega Miner', description='5x your mining speed', price=50000, currency='Balance', multiplier=5.0),
+        StoreItem(id=9, name='Ultra Miner', description='10x your mining speed', price=100000, currency='Balance', multiplier=10.0),
+    ]
+    db.session.bulk_save_objects(items)
+    db.session.commit()
+
 with app.app_context():
     db.create_all()
+    if Task.query.count() == 0:
+        create_initial_tasks()
+    if StoreItem.query.count() == 0:
+        create_initial_store_items()
 
 def generate_referral_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -48,21 +109,11 @@ def check_and_create_user():
     data = request.json
     app.logger.info(f"Received request to check/create user: {data}")
 
-    # Log the entire request data
-    app.logger.info(f"Full request data: {request.data}")
-
-    # Log headers to check for any Telegram-specific information
-    app.logger.info(f"Request headers: {request.headers}")
-
     user = User.query.filter_by(user_id=data['user_id']).first()
 
     if not user:
         referral_code = data.get('referral_code')
         app.logger.info(f"Referral code received in request: {referral_code}")
-
-        # Log the start parameter separately if it's coming from Telegram
-        start_param = data.get('start_param')
-        app.logger.info(f"Start parameter from Telegram: {start_param}")
 
         referrer = None
         if referral_code:
@@ -75,7 +126,7 @@ def check_and_create_user():
             referral_code=generate_referral_code()
         )
         db.session.add(new_user)
-        db.session.flush()  # This will assign an ID to new_user
+        db.session.flush()
         app.logger.info(f"Created new user: {new_user.username} with referral code: {new_user.referral_code}")
 
         if referrer:
@@ -101,7 +152,6 @@ def check_and_create_user():
     else:
         app.logger.info(f"Found existing user: {user.username}")
 
-    # Log the response being sent back
     response_data = {
         'user_id': user.user_id,
         'username': user.username,
@@ -114,6 +164,7 @@ def check_and_create_user():
     app.logger.info(f"Sending response: {response_data}")
 
     return jsonify(response_data)
+
 
 @app.route('/api/user/<user_id>', methods=['GET'])
 def get_user(user_id):
@@ -128,7 +179,7 @@ def get_user(user_id):
             'last_claim': user.last_claim.isoformat() if user.last_claim else None,
             'cipher_solved': user.cipher_solved,
             'next_cipher_time': user.next_cipher_time.isoformat() if user.next_cipher_time else None,
-            'wallet_address': user.wallet_address  # Add this field to the response
+            'wallet_address': user.wallet_address
         })
     app.logger.warning(f"User not found for user_id: {user_id}")
     return jsonify({'error': 'User not found'}), 404
@@ -143,7 +194,6 @@ def claim_tokens():
             claim_amount = 3500
             user.balance += claim_amount
             user.last_claim = datetime.utcnow()
-            update_user_earnings(user, claim_amount)
             db.session.commit()
             app.logger.info(f"Claim successful for {user.username}. New balance: {user.balance}")
             return jsonify({'success': True, 'new_balance': user.balance})
@@ -153,15 +203,91 @@ def claim_tokens():
     app.logger.warning(f"User not found for claim request: {data['user_id']}")
     return jsonify({'error': 'User not found'}), 404
 
+@app.route('/api/user/<user_id>/last_purchase_time', methods=['GET'])
+def get_last_purchase_time(user_id):
+    app.logger.info(f"Fetching last purchase time for user_id: {user_id}")
+    user = User.query.filter_by(user_id=user_id).first()
+    if user:
+        return jsonify({
+            'last_purchase_time': user.last_ton_purchase.isoformat() if user.last_ton_purchase else None
+        })
+    app.logger.warning(f"User not found for user_id: {user_id}")
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/api/update_multiplier', methods=['POST'])
+def update_multiplier():
+    data = request.json
+    user_id = data.get('user_id')
+    multiplier = data.get('multiplier')
+
+    app.logger.info(f"Updating multiplier for user_id: {user_id}, multiplier: {multiplier}")
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        app.logger.warning(f"User not found for user_id: {user_id}")
+        return jsonify({'error': 'User not found'}), 404
+
+    user.balance_multiplier = multiplier
+    user.last_ton_purchase = datetime.utcnow()
+    db.session.commit()
+
+    app.logger.info(f"Multiplier updated for {user.username}. New multiplier: {user.balance_multiplier}")
+    return jsonify({'success': True, 'new_multiplier': user.balance_multiplier})
+
+@app.route('/api/purchase', methods=['POST'])
+def purchase():
+    data = request.json
+    user_id = data.get('user_id')
+    item_id = data.get('item_id')
+
+    app.logger.info(f"Purchase request for user_id: {user_id}, item_id: {item_id}")
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        app.logger.warning(f"User not found for user_id: {user_id}")
+        return jsonify({'error': 'User not found'}), 404
+
+    item = StoreItem.query.get(item_id)
+    if not item:
+        app.logger.warning(f"Item not found for item_id: {item_id}")
+        return jsonify({'error': 'Item not found'}), 404
+
+    if item.currency == 'Balance':
+        if user.balance < item.price:
+            app.logger.warning(f"Insufficient balance for user: {user.username}")
+            return jsonify({'error': 'Insufficient balance'}), 400
+
+        user.balance -= item.price
+        user.mining_multiplier = item.multiplier
+    elif item.currency == 'TON':
+        user.balance_multiplier = item.multiplier
+        user.last_ton_purchase = datetime.utcnow()
+    else:
+        app.logger.warning(f"Invalid currency for item: {item.id}")
+        return jsonify({'error': 'Invalid item currency'}), 400
+
+    db.session.commit()
+
+    app.logger.info(f"Purchase successful for {user.username}. New balance: {user.balance}, New mining multiplier: {user.mining_multiplier}")
+    return jsonify({
+        'success': True,
+        'new_balance': user.balance,
+        'new_mining_multiplier': user.mining_multiplier,
+        'new_balance_multiplier': user.balance_multiplier
+    })
+
 @app.route('/api/store/items', methods=['GET'])
 def get_store_items():
-    items = [
-        {"id": 1, "name": "Boost 1", "description": "x2 multiplier on your Mining speed", "price": 0.2},
-        {"id": 2, "name": "Boost 2", "description": "x3 multiplier on your Mining speed", "price": 0.3},
-        {"id": 3, "name": "Boost 3", "description": "x5 multiplier on your Mining speed", "price": 0.5},
-        # Add more items as needed
-    ]
-    return jsonify(items)
+    app.logger.info("Fetching store items")
+    items = StoreItem.query.all()
+    return jsonify([{
+        'id': item.id,
+        'name': item.name,
+        'description': item.description,
+        'price': item.price,
+        'currency': item.currency,
+        'multiplier': item.multiplier
+    } for item in items])
 
 @app.route('/api/user/update_wallet', methods=['POST'])
 def update_user_wallet():
@@ -217,22 +343,7 @@ def update_balance():
     })
 
 @app.route('/api/solve_cipher', methods=['POST'])
-def reset_cipher_status():
-    current_time = datetime.utcnow()
-    users_to_reset = User.query.filter(
-        User.cipher_solved == True,
-        User.next_cipher_time <= current_time
-    ).all()
-
-    for user in users_to_reset:
-        user.cipher_solved = False
-        user.next_cipher_time = None
-
-    db.session.commit()
-    app.logger.info(f"Reset cipher status for {len(users_to_reset)} users")
-
 def solve_cipher():
-    reset_cipher_status()
     data = request.json
     app.logger.info(f"Cipher solve attempt for user_id: {data['user_id']}")
     user = User.query.filter_by(user_id=data['user_id']).first()
@@ -246,7 +357,6 @@ def solve_cipher():
                 if next_time <= datetime.utcnow():
                     next_time += timedelta(days=1)
                 user.next_cipher_time = next_time
-                update_user_earnings(user, reward_amount)
                 db.session.commit()
                 app.logger.info(f"Cipher solved successfully by {user.username}. New balance: {user.balance}")
                 return jsonify({'success': True, 'new_balance': user.balance})
@@ -267,26 +377,114 @@ def get_leaderboard():
     app.logger.info(f"Leaderboard fetched: {leaderboard}")
     return jsonify(leaderboard)
 
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    user_id = request.args.get('user_id')
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    all_tasks = Task.query.all()
+    user_tasks = UserTask.query.filter_by(user_id=user.id).all()
+
+    tasks = []
+    for task in all_tasks:
+        user_task = next((ut for ut in user_tasks if ut.task_id == task.id), None)
+        if not user_task or not user_task.completed:
+            tasks.append({
+                'id': task.id,
+                'description': task.description,
+                'reward': task.reward,
+                'type': task.type,
+                'completed': user_task.completed if user_task else False,
+                'claimed': user_task.claimed if user_task else False,
+                'cooldown': (user_task.completed_at + timedelta(minutes=1) - datetime.utcnow()).total_seconds() if user_task and user_task.completed_at else 0
+            })
+
+    return jsonify(tasks)
+
+@app.route('/api/verify_task', methods=['POST'])
+def verify_task():
+    data = request.json
+    user_id = data.get('user_id')
+    task_id = data.get('task_id')
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+
+    if task.type == 'referral':
+        referral_count = Referral.query.filter_by(referrer_id=user.id).count()
+        if referral_count >= task.required_count:
+            return complete_task(user, task)
+        else:
+            return jsonify({'error': 'Not enough referrals'}), 400
+
+    elif task.type in ['telegram', 'twitter']:
+        # Here you would implement the actual verification logic
+        # For demonstration, we'll just assume it's always successful
+        return complete_task(user, task)
+
+    else:
+        return jsonify({'error': 'Invalid task type'}), 400
+
+def complete_task(user, task):
+    user_task = UserTask.query.filter_by(user_id=user.id, task_id=task.id).first()
+    if not user_task:
+        user_task = UserTask(user_id=user.id, task_id=task.id)
+        db.session.add(user_task)
+
+    user_task.completed = True
+    user_task.completed_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Task completed'})
+
+@app.route('/api/claim_task', methods=['POST'])
+def claim_task():
+    data = request.json
+    user_id = data.get('user_id')
+    task_id = data.get('task_id')
+
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    user_task = UserTask.query.filter_by(user_id=user.id, task_id=task_id).first()
+    if not user_task or not user_task.completed or user_task.claimed:
+        return jsonify({'error': 'Cannot claim task'}), 400
+
+    if datetime.utcnow() - user_task.completed_at < timedelta(minutes=1):
+        return jsonify({'error': 'Task is still on cooldown'}), 400
+
+    task = Task.query.get(task_id)
+    user.balance += task.reward
+    user_task.claimed = True
+    user_task.claimed_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'success': True, 'new_balance': user.balance})
+
 @app.route('/api/referrals/<user_id>', methods=['GET'])
 def get_referrals(user_id):
     app.logger.info(f"Fetching referrals for user_id: {user_id}")
     user = User.query.filter_by(user_id=user_id).first()
     if user:
         referrals = User.query.join(Referral, Referral.referred_id == User.id).filter(Referral.referrer_id == user.id).all()
-        claimable_amount = calculate_claimable_amount(user)
 
         referral_link = f"https://t.me/yara_miner_bot/mine65?start={user.referral_code}"
 
         referral_data = {
             'referral_code': user.referral_code,
             'referral_link': referral_link,
-            'last_claim_time': user.last_referral_claim.isoformat() if user.last_referral_claim else None,
-            'claimable_amount': claimable_amount,
             'referrals': [
                 {
                     'username': referral.username,
                     'balance': referral.balance,
-                    'earnings': calculate_earnings(referral)
                 }
                 for referral in referrals
             ]
@@ -294,82 +492,6 @@ def get_referrals(user_id):
         app.logger.info(f"Referral data for {user.username}: {referral_data}")
         return jsonify(referral_data)
     app.logger.warning(f"User not found for referral data request: {user_id}")
-    return jsonify({'error': 'User not found'}), 404
-
-def calculate_claimable_amount(user):
-    app.logger.info(f"Calculating claimable amount for {user.username}")
-    referrals = Referral.query.filter_by(referrer_id=user.id).all()
-    total_claimable = 0
-    current_time = datetime.utcnow()
-
-    for referral in referrals:
-        referred_user = User.query.get(referral.referred_id)
-        if referred_user:
-            earnings = calculate_earnings(referred_user)
-            total_claimable += earnings * 0.25  # 25% of earnings
-
-    # Reset daily earnings for referred users
-    for referral in referrals:
-        referred_user = User.query.get(referral.referred_id)
-        if referred_user:
-            referred_user.daily_earnings = 0
-            referred_user.last_earnings_update = current_time
-
-    db.session.commit()
-    app.logger.info(f"Claimable amount for {user.username}: {total_claimable}")
-    return total_claimable
-
-def calculate_earnings(referred_user):
-    app.logger.info(f"Calculating earnings for referred user: {referred_user.username}")
-    if referred_user.last_earnings_update is None:
-        app.logger.info(f"No previous earnings update for {referred_user.username}")
-        return referred_user.daily_earnings
-
-    time_since_last_update = datetime.utcnow() - referred_user.last_earnings_update
-    if time_since_last_update < timedelta(days=1):
-        app.logger.info(f"Less than a day since last update for {referred_user.username}")
-        return referred_user.daily_earnings
-
-    # If it's been more than a day, return the daily earnings and reset
-    earnings = referred_user.daily_earnings
-    referred_user.daily_earnings = 0
-    referred_user.last_earnings_update = datetime.utcnow()
-    db.session.commit()
-    app.logger.info(f"Earnings calculated for {referred_user.username}: {earnings}")
-    return earnings
-
-def update_user_earnings(user, amount):
-    app.logger.info(f"Updating earnings for {user.username}, amount: {amount}")
-    if user.last_earnings_update is None or datetime.utcnow() - user.last_earnings_update >= timedelta(days=1):
-        user.daily_earnings = amount
-    else:
-        user.daily_earnings += amount
-    user.last_earnings_update = datetime.utcnow()
-    db.session.commit()
-    app.logger.info(f"Updated daily earnings for {user.username}: {user.daily_earnings}")
-
-@app.route('/api/claim_referrals', methods=['POST'])
-def claim_referral_rewards():
-    data = request.json
-    app.logger.info(f"Referral claim request for user_id: {data['user_id']}")
-    user = User.query.filter_by(user_id=data['user_id']).first()
-    if user:
-        if user.last_referral_claim is None or datetime.utcnow() - user.last_referral_claim >= timedelta(days=1):
-            claimable_amount = calculate_claimable_amount(user)
-
-            if claimable_amount > 0:
-                user.balance += claimable_amount
-                user.last_referral_claim = datetime.utcnow()
-                db.session.commit()
-                app.logger.info(f"Referral claim successful for {user.username}. Claimed amount: {claimable_amount}")
-                return jsonify({'success': True, 'new_balance': user.balance, 'reward': claimable_amount})
-            else:
-                app.logger.info(f"No rewards to claim for {user.username}")
-                return jsonify({'error': 'No rewards to claim'}), 400
-        else:
-            app.logger.info(f"Cannot claim referral rewards yet for {user.username}")
-            return jsonify({'error': 'Cannot claim referral rewards yet'}), 400
-    app.logger.warning(f"User not found for referral claim: {data['user_id']}")
     return jsonify({'error': 'User not found'}), 404
 
 if __name__ == '__main__':
