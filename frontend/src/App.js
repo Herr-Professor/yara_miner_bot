@@ -94,7 +94,7 @@ function App() {
                 setBalance(data.new_balance);
                 setNextClaimTime(new Date().getTime() + 8 * 60 * 60 * 1000);
                 setMiningProgress(0);
-                return true;
+                return { success: true, claimedAmount: data.claimed_amount };
             } else {
                 throw new Error(data.error || 'Failed to claim tokens');
             }
@@ -236,6 +236,7 @@ function App() {
                                             onClaim={handleClaim} 
                                             nextClaimTime={nextClaimTime}
                                             miningProgress={miningProgress}
+                                            balanceMultiplier={user.balance_multiplier}
                                         />
                                     </div>
                                     <TaskList userId={user.user_id} onBalanceUpdate={setBalance} />

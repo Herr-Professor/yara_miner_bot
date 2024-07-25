@@ -33,6 +33,7 @@ class User(db.Model):
     last_ton_purchase = db.Column(db.DateTime)
     balance_multiplier = db.Column(db.Float, default=1.0)
     mining_multiplier = db.Column(db.Float, default=1.0)
+    purchased_multipliers = db.Column(db.String(255), default='')
 
 class StoreItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -191,12 +192,13 @@ def claim_tokens():
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if user.last_claim is None or datetime.utcnow() - user.last_claim >= timedelta(hours=8):
-            claim_amount = 3500
+            base_claim_amount = 3500
+            claim_amount = base_claim_amount * user.balance_multiplier
             user.balance += claim_amount
             user.last_claim = datetime.utcnow()
             db.session.commit()
             app.logger.info(f"Claim successful for {user.username}. New balance: {user.balance}")
-            return jsonify({'success': True, 'new_balance': user.balance})
+            return jsonify({'success': True, 'new_balance': user.balance, 'claimed_amount': claim_amount})
         else:
             app.logger.info(f"Claim attempt too soon for {user.username}")
             return jsonify({'error': 'Cannot claim yet'}), 400
@@ -257,8 +259,18 @@ def purchase():
             app.logger.warning(f"Insufficient balance for user: {user.username}")
             return jsonify({'error': 'Insufficient balance'}), 400
 
+        # Check if the user has already purchased this multiplier
+        purchased_multipliers = user.purchased_multipliers.split(',') if user.purchased_multipliers else []
+        if str(item.id) in purchased_multipliers:
+            app.logger.warning(f"User {user.username} already purchased multiplier: {item.id}")
+            return jsonify({'error': 'Multiplier already purchased'}), 400
+
         user.balance -= item.price
         user.mining_multiplier = item.multiplier
+        
+        # Add the purchased multiplier to the user's list
+        purchased_multipliers.append(str(item.id))
+        user.purchased_multipliers = ','.join(purchased_multipliers)
     elif item.currency == 'TON':
         user.balance_multiplier = item.multiplier
         user.last_ton_purchase = datetime.utcnow()
@@ -279,16 +291,22 @@ def purchase():
 @app.route('/api/store/items', methods=['GET'])
 def get_store_items():
     app.logger.info("Fetching store items")
+    user_id = request.args.get('user_id')
+    user = User.query.filter_by(user_id=user_id).first()
+    
     items = StoreItem.query.all()
+    purchased_multipliers = user.purchased_multipliers.split(',') if user and user.purchased_multipliers else []
+    
     return jsonify([{
         'id': item.id,
         'name': item.name,
         'description': item.description,
         'price': item.price,
         'currency': item.currency,
-        'multiplier': item.multiplier
+        'multiplier': item.multiplier,
+        'purchased': str(item.id) in purchased_multipliers if item.currency == 'Balance' else False
     } for item in items])
-
+    
 @app.route('/api/user/update_wallet', methods=['POST'])
 def update_user_wallet():
     data = request.json

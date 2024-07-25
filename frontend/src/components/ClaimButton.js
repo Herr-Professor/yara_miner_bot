@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSpring, animated } from 'react-spring';
 import { toast } from 'react-toastify';
 
-function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
+function ClaimButton({ onClaim, nextClaimTime, miningProgress, balanceMultiplier }) {
     const [timeLeft, setTimeLeft] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const baseClaimAmount = 3500;
+    const multipliedClaimAmount = baseClaimAmount * balanceMultiplier;
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -30,16 +32,16 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
     });
 
     const progressAnimation = useSpring({
-        width: `${(miningProgress / 3500) * 100}%`,
+        width: `${(miningProgress / multipliedClaimAmount) * 100}%`,
         from: { width: '0%' },
     });
 
     const handleClick = async () => {
         setIsLoading(true);
         try {
-            const success = await onClaim();
-            if (success) {
-                toast.success('Tokens claimed successfully!');
+            const result = await onClaim();
+            if (result.success) {
+                toast.success(`Tokens claimed successfully! You received ${result.claimedAmount} tokens.`);
             }
         } catch (error) {
             console.error('Failed to claim tokens:', error);
@@ -53,7 +55,7 @@ function ClaimButton({ onClaim, nextClaimTime, miningProgress }) {
         <div className="claim-button">
             <div className="mining-progress">
                 <animated.div className="progress-bar" style={progressAnimation} />
-                <p className="progress-text">{miningProgress} / 3500</p>
+                <p className="progress-text">{miningProgress} / {multipliedClaimAmount}</p>
             </div>
             <p className="time-left">{timeLeft}</p>
             <animated.button 

@@ -43,7 +43,7 @@ function Store({ userId, balance, setBalance }) {
 
     const fetchStoreItems = async () => {
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/store/items');
+            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/store/items?user_id=${userId}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch store items');
             }
@@ -118,7 +118,7 @@ function Store({ userId, balance, setBalance }) {
             showNotification('Insufficient balance', 'error');
             return;
         }
-
+    
         try {
             const response = await fetch('https://herrprofessor.pythonanywhere.com/api/purchase', {
                 method: 'POST',
@@ -127,17 +127,18 @@ function Store({ userId, balance, setBalance }) {
                 },
                 body: JSON.stringify({ user_id: userId, item_id: item.id }),
             });
-
+    
             if (!response.ok) {
-                throw new Error('Purchase failed');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Purchase failed');
             }
-
+    
             const result = await response.json();
             setBalance(result.new_balance);
             showNotification(`Successfully purchased ${item.name}`, 'success');
         } catch (error) {
             console.error('Purchase error:', error);
-            showNotification('Purchase failed. Please try again.', 'error');
+            showNotification(error.message, 'error');
         }
     };
 
@@ -201,11 +202,16 @@ function Store({ userId, balance, setBalance }) {
                     <div className="store-items">
                         {balanceItems.map(item => (
                             <div key={item.id} className="store-item">
-                                <h3>{item.name}</h3>
-                                <p>{item.description}</p>
-                                <p>Price: {item.price} tokens</p>
-                                <p>Mining Speed: x{item.multiplier}</p>
-                                <button onClick={() => handlePurchase(item)}>Buy</button>
+                            <h3>{item.name}</h3>
+                            <p>{item.description}</p>
+                            <p>Price: {item.price} tokens</p>
+                            <p>Mining Speed: x{item.multiplier}</p>
+                        <button 
+                            onClick={() => handlePurchase(item)} 
+                            disabled={item.purchased}
+                        >
+                           {item.purchased ? 'Already Purchased' : 'Buy'}
+                        </button>
                             </div>
                         ))}
                     </div>
