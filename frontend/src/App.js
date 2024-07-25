@@ -21,6 +21,7 @@ function App() {
     const [nextClaimTime, setNextClaimTime] = useState(null);
     const [activeTab, setActiveTab] = useState('main');
     const [miningProgress, setMiningProgress] = useState(0);
+    const [balanceMultiplier, setBalanceMultiplier] = useState(1);
     const [cipherStatus, setCipherStatus] = useState({ solved: false, nextAvailableTime: null });
     const [timeLeft, setTimeLeft] = useState('');
     
@@ -45,17 +46,20 @@ function App() {
             const interval = setInterval(() => {
                 const now = new Date().getTime();
                 const timeLeft = nextClaimTime - now;
+                const baseClaimAmount = 3500;
+                const multipliedClaimAmount = baseClaimAmount * balanceMultiplier;
+                
                 if (timeLeft > 0) {
-                    setMiningProgress(Math.round(3500 - (timeLeft / (8 * 60 * 60 * 1000)) * 3500));
+                    setMiningProgress(Math.round(multipliedClaimAmount - (timeLeft / (8 * 60 * 60 * 1000)) * multipliedClaimAmount));
                 } else {
-                    setMiningProgress(3500);
+                    setMiningProgress(multipliedClaimAmount);
                     clearInterval(interval);
                 }
             }, 1000);
-
+    
             return () => clearInterval(interval);
         }
-    }, [nextClaimTime]);
+    }, [nextClaimTime, balanceMultiplier]);
 
     useEffect(() => {
         let timer;
@@ -159,9 +163,10 @@ function App() {
     
             const userData = await response.json();
             console.log("Received user data:", userData);
-    
+
             setUser(userData);
             setBalance(userData.balance);
+            setBalanceMultiplier(userData.balance_multiplier || 1);
             setNextClaimTime(userData.last_claim ? new Date(userData.last_claim).getTime() + 8 * 60 * 60 * 1000 : new Date().getTime());
             setCipherStatus({
                 solved: userData.cipher_solved,
@@ -236,7 +241,7 @@ function App() {
                                             onClaim={handleClaim} 
                                             nextClaimTime={nextClaimTime}
                                             miningProgress={miningProgress}
-                                            balanceMultiplier={user.balance_multiplier}
+                                            balanceMultiplier={balanceMultiplier}
                                         />
                                     </div>
                                     <TaskList userId={user.user_id} onBalanceUpdate={setBalance} />

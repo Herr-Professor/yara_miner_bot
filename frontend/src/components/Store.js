@@ -181,7 +181,7 @@ function Store({ userId, balance, setBalance }) {
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={activeTab} onChange={handleTabChange}>
                     <Tab label="TON Store" />
-                    <Tab label="Balance Store" />
+                    <Tab label="Yara Store" />
                 </Tabs>
             </Box>
             <Box sx={{ p: 3 }}>
@@ -204,7 +204,7 @@ function Store({ userId, balance, setBalance }) {
                             <div key={item.id} className="store-item">
                             <h3>{item.name}</h3>
                             <p>{item.description}</p>
-                            <p>Price: {item.price} tokens</p>
+                            <p>Price: {item.price} YARA </p>
                             <p>Mining Speed: x{item.multiplier}</p>
                         <button 
                             onClick={() => handlePurchase(item)} 
