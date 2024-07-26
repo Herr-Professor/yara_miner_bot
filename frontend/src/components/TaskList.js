@@ -8,7 +8,7 @@ function TaskList({ userId, onBalanceUpdate }) {
         fetchTasks();
         const intervalId = setInterval(fetchTasks, 600000); // Refresh every minute
         return () => clearInterval(intervalId);
-    }, [fetchTasks])
+    }, [userId])
 
     const fetchTasks = async () => {
         try {
