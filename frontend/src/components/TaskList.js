@@ -26,8 +26,11 @@ function TaskList({ userId, onBalanceUpdate }) {
         } else if (taskType === 'telegram' || taskType === 'twitter') {
             window.open(taskUrl, '_blank');
             await verifyTask(taskId);
-        } else {
+        } else if (taskType === 'achievement') {
+            // Handle achievement tasks
             await verifyTask(taskId);
+        } else {
+            console.error('Unknown task type:', taskType);
         }
     };
 

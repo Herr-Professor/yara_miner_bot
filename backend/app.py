@@ -40,7 +40,7 @@ class StoreItem(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255))
     price = db.Column(db.Float, nullable=False)
-    currency = db.Column(db.String(10), nullable=False)  # 'TON' or 'Balance'
+    currency = db.Column(db.String(10), nullable=False)
     multiplier = db.Column(db.Float, nullable=False)
 
 class Referral(db.Model):
@@ -56,6 +56,7 @@ class Task(db.Model):
     type = db.Column(db.String(50), nullable=False)
     url = db.Column(db.String(200))
     required_count = db.Column(db.Integer, default=1)
+    required_balance = db.Column(db.Float, default=5000)
 
 class UserTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,10 +73,11 @@ def create_initial_tasks():
         Task(description="Invite 3 friends", reward=2000, type="referral", required_count=3),
         Task(description="Invite 5 friends", reward=5000, type="referral", required_count=5),
         Task(description="Invite 10 friends", reward=15000, type="referral", required_count=10),
-        Task(description="Join our Telegram channel", reward=200, type="telegram", url="https://t.me/your_channel"),
-        Task(description="Follow our Twitter page", reward=200, type="twitter", url="https://twitter.com/your_page"),
-        Task(description="Complete your first game", reward=100, type="game"),
-        Task(description="Reach 10,000 balance", reward=1000, type="achievement")
+        Task(description="Join our Telegram channel", reward=200, type="telegram", url="https://t.me/yaracoinchannel"),
+        Task(description="Follow our Twitter page", reward=200, type="twitter", url="https://twitter.com/yaracoin"),
+        Task(description="Reach 5,000 balance", reward=1000, type="achievement"),
+        Task(description="Reach 10,000 balance", reward=2000, type="achievement"),
+        Task(description="Reach 50,000 balance", reward=10000, type="achievement")
     ]
     db.session.bulk_save_objects(tasks)
     db.session.commit()
@@ -110,11 +112,21 @@ def check_and_create_user():
     data = request.json
     app.logger.info(f"Received request to check/create user: {data}")
 
+    # Log the entire request data
+    app.logger.info(f"Full request data: {request.data}")
+
+    # Log headers to check for any Telegram-specific information
+    app.logger.info(f"Request headers: {request.headers}")
+
     user = User.query.filter_by(user_id=data['user_id']).first()
 
     if not user:
         referral_code = data.get('referral_code')
         app.logger.info(f"Referral code received in request: {referral_code}")
+
+        # Log the start parameter separately if it's coming from Telegram
+        start_param = data.get('start_param')
+        app.logger.info(f"Start parameter from Telegram: {start_param}")
 
         referrer = None
         if referral_code:
@@ -193,7 +205,9 @@ def claim_tokens():
     if user:
         if user.last_claim is None or datetime.utcnow() - user.last_claim >= timedelta(hours=8):
             base_claim_amount = 3500
-            claim_amount = base_claim_amount * user.balance_multiplier
+            # Add this check
+            balance_multiplier = user.balance_multiplier if user.balance_multiplier is not None else 1
+            claim_amount = base_claim_amount * balance_multiplier
             user.balance += claim_amount
             user.last_claim = datetime.utcnow()
             db.session.commit()
@@ -267,7 +281,7 @@ def purchase():
 
         user.balance -= item.price
         user.mining_multiplier = item.multiplier
-        
+
         # Add the purchased multiplier to the user's list
         purchased_multipliers.append(str(item.id))
         user.purchased_multipliers = ','.join(purchased_multipliers)
@@ -293,10 +307,10 @@ def get_store_items():
     app.logger.info("Fetching store items")
     user_id = request.args.get('user_id')
     user = User.query.filter_by(user_id=user_id).first()
-    
+
     items = StoreItem.query.all()
     purchased_multipliers = user.purchased_multipliers.split(',') if user and user.purchased_multipliers else []
-    
+
     return jsonify([{
         'id': item.id,
         'name': item.name,
@@ -306,7 +320,7 @@ def get_store_items():
         'multiplier': item.multiplier,
         'purchased': str(item.id) in purchased_multipliers if item.currency == 'Balance' else False
     } for item in items])
-    
+
 @app.route('/api/user/update_wallet', methods=['POST'])
 def update_user_wallet():
     data = request.json
@@ -367,8 +381,8 @@ def solve_cipher():
     user = User.query.filter_by(user_id=data['user_id']).first()
     if user:
         if not user.cipher_solved and (user.next_cipher_time is None or datetime.utcnow() >= user.next_cipher_time):
-            if data['solution'].upper() == 'HELLWORLD':
-                reward_amount = 1000
+            if data['solution'].upper() == 'CARBONITE':
+                reward_amount = 3000
                 user.balance += reward_amount
                 user.cipher_solved = True
                 next_time = datetime.utcnow().replace(hour=12, minute=0, second=0, microsecond=0)
@@ -442,13 +456,54 @@ def verify_task():
         else:
             return jsonify({'error': 'Not enough referrals'}), 400
 
-    elif task.type in ['telegram', 'twitter']:
-        # Here you would implement the actual verification logic
-        # For demonstration, we'll just assume it's always successful
-        return complete_task(user, task)
+    elif task.type == 'telegram':
+        # Implement Telegram channel membership verification
+        telegram_username = data.get('telegram_username')
+        if not telegram_username:
+            return jsonify({'error': 'Telegram username not provided'}), 400
 
+        if verify_telegram_membership(telegram_username, task.url):
+            return complete_task(user, task)
+        else:
+            return jsonify({'error': 'Not a member our channel'}), 400
+
+    elif task.type == 'twitter':
+        # Implement Twitter follow verification
+        twitter_username = data.get('twitter_username')
+        if not twitter_username:
+            return jsonify({'error': 'Twitter username not provided'}), 400
+
+        if verify_twitter_follow(twitter_username, task.url):
+            return complete_task(user, task)
+        else:
+            return jsonify({'error': 'Not following the Twitter account'}), 400
+
+    elif task.type == 'achievement':
+        user_balance = user.balance  # Assuming user object has a balance attribute
+        if user_balance >= task.required_balance:
+            return complete_task(user, task)
+        else:
+            return jsonify({
+            'error': 'Achievement not reached',
+            'current_balance': user_balance,
+            'required_balance': task.required_balance
+            }), 400
     else:
         return jsonify({'error': 'Invalid task type'}), 400
+
+def verify_telegram_membership(username, channel_url):
+    # This is a placeholder function. In a real-world scenario, you would need to use
+    # Telegram's Bot API to verify channel membership.
+    # For demonstration purposes, we'll assume the verification is successful.
+    app.logger.info(f"Verifying Telegram membership for {username} in {channel_url}")
+    return True
+
+def verify_twitter_follow(username, twitter_url):
+    # This is a placeholder function. In a real-world scenario, you would need to use
+    # Twitter's API to verify if a user is following an account.
+    # For demonstration purposes, we'll assume the verification is successful.
+    app.logger.info(f"Verifying Twitter follow for {username} on {twitter_url}")
+    return True
 
 def complete_task(user, task):
     user_task = UserTask.query.filter_by(user_id=user.id, task_id=task.id).first()
