@@ -56,7 +56,7 @@ class Task(db.Model):
     type = db.Column(db.String(50), nullable=False)
     url = db.Column(db.String(200))
     required_count = db.Column(db.Integer, default=1)
-    required_balance = db.Column(db.Float, default=5000)
+    required_balance = db.Column(db.Integer)
 
 class UserTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -75,9 +75,9 @@ def create_initial_tasks():
         Task(description="Invite 10 friends", reward=15000, type="referral", required_count=10),
         Task(description="Join our Telegram channel", reward=200, type="telegram", url="https://t.me/yaracoinchannel"),
         Task(description="Follow our Twitter page", reward=200, type="twitter", url="https://twitter.com/yaracoin"),
-        Task(description="Reach 5,000 balance", reward=1000, type="achievement"),
-        Task(description="Reach 10,000 balance", reward=2000, type="achievement"),
-        Task(description="Reach 50,000 balance", reward=10000, type="achievement")
+        Task(description="Reach 5,000 balance", reward=1000, type="achievement", required_balance=5000),
+        Task(description="Reach 10,000 balance", reward=2000, type="achievement", required_balance=10000),
+        Task(description="Reach 50,000 balance", reward=10000, type="achievement", required_balance=50000)
     ]
     db.session.bulk_save_objects(tasks)
     db.session.commit()
@@ -432,7 +432,7 @@ def get_tasks():
                 'claimed': user_task.claimed if user_task else False,
                 'cooldown': (user_task.completed_at + timedelta(minutes=1) - datetime.utcnow()).total_seconds() if user_task and user_task.completed_at else 0
             })
-
+    app.logger.info(f"Returning tasks: {tasks}")
     return jsonify(tasks)
 
 @app.route('/api/verify_task', methods=['POST'])
