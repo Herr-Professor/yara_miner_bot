@@ -6,7 +6,7 @@ function TaskList({ userId, onBalanceUpdate }) {
 
     useEffect(() => {
         fetchTasks();
-        const intervalId = setInterval(fetchTasks, 120000); // Refresh every minute
+        const intervalId = setInterval(fetchTasks, 600000); // Refresh every minute
         return () => clearInterval(intervalId);
     }, [fetchTasks])
 
@@ -34,7 +34,7 @@ function TaskList({ userId, onBalanceUpdate }) {
         } else {
             console.error('Unknown task type:', taskType);
         }
-        await fetchTasks();
+    
     };
 
     const verifyTask = async (taskId) => {
@@ -72,13 +72,13 @@ function TaskList({ userId, onBalanceUpdate }) {
             console.error('Error claiming task:', error);
             toast.error('Failed to claim reward. Please try again.');
         }
-        await fetchTasks();
+       
     };
 
     return (
         <div className="task-list">
             <h2>Tasks</h2>
-            <button onClick={fetchTasks}>Refresh Tasks</button>
+            
             {tasks.length === 0 ? (
                 <p>No active tasks at the moment. Check back later!</p>
             ) : (
