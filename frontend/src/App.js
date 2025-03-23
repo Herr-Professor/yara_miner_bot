@@ -86,7 +86,7 @@ function App() {
         if (!user) return;
     
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/claim', {
+            const response = await fetch('https://yara-mine.onrender.com/api/claim', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ function App() {
     const fetchCipherStatus = async () => {
         if (!user) return;
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${user.user_id}`);
+            const response = await fetch(`https://yara-mine.onrender.com/api/user/${user.user_id}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch cipher status');
             }
@@ -140,7 +140,7 @@ function App() {
         console.log("Referral code from start_param:", referralCode);
     
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/user/check_and_create', {
+            const response = await fetch('https://yara-mine.onrender.com/api/user/check_and_create', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

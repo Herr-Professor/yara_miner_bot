@@ -26,7 +26,7 @@ function Store({ userId, balance, setBalance }) {
 
     const updateWalletAddress = async (address) => {
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/user/update_wallet', {
+            const response = await fetch('https://yara-mine.onrender.com/api/user/update_wallet', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ function Store({ userId, balance, setBalance }) {
 
     const fetchStoreItems = async () => {
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/store/items?user_id=${userId}`);
+            const response = await fetch(`https://yara-mine.onrender.com/api/store/items?user_id=${userId}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch store items');
             }
@@ -59,7 +59,7 @@ function Store({ userId, balance, setBalance }) {
 
     const fetchLastPurchaseTime = async () => {
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/user/${userId}/last_purchase_time`);
+            const response = await fetch(`https://yara-mine.onrender.com/api/user/${userId}/last_purchase_time`);
             if (!response.ok) {
                 throw new Error('Failed to fetch last purchase time');
             }
@@ -120,7 +120,7 @@ function Store({ userId, balance, setBalance }) {
         }
     
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/purchase', {
+            const response = await fetch('https://yara-mine.onrender.com/api/purchase', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ function Store({ userId, balance, setBalance }) {
 
     const updateUserMultiplier = async (multiplier) => {
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/update_multiplier', {
+            const response = await fetch('https://yara-mine.onrender.com/api/update_multiplier', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

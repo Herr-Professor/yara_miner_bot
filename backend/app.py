@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 import string
+import os
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://yara-miner-bot.vercel.app", "https://t.me"]}})
@@ -568,4 +569,7 @@ def get_referrals(user_id):
     return jsonify({'error': 'User not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    # Get port from environment variable (Render sets this) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    # Run on all interfaces, required for Render
+    app.run(host='0.0.0.0', port=port, debug=False)

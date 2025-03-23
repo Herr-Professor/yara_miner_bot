@@ -2,7 +2,7 @@ import requests
 import json
 from tabulate import tabulate
 
-BASE_URL = "https://herrprofessor.pythonanywhere.com"  # Adjust this if your Flask app is running on a different host/port
+BASE_URL = "https://yara-mine.onrender.com"  # Adjust this if your Flask app is running on a different host/port
 
 def get_all_users():
     response = requests.get(f"{BASE_URL}/api/leaderboard")

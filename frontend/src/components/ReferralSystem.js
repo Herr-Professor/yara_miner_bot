@@ -13,7 +13,7 @@ function ReferralSystem({ userId }) {
     const fetchReferralData = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/referrals/${userId}`);
+            const response = await fetch(`https://yara-mine.onrender.com/api/referrals/${userId}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch referral data');
             }

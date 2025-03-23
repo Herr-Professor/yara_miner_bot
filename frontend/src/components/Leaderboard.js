@@ -12,7 +12,7 @@ function Leaderboard() {
     const fetchLeaderboard = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/leaderboard');
+            const response = await fetch('https://yara-mine.onrender.com/api/leaderboard');
             if (!response.ok) {
                 throw new Error('Failed to fetch leaderboard data');
             }

@@ -12,7 +12,7 @@ function TaskList({ userId, onBalanceUpdate }) {
 
     const fetchTasks = async () => {
         try {
-            const response = await fetch(`https://herrprofessor.pythonanywhere.com/api/tasks?user_id=${userId}`);
+            const response = await fetch(`https://yara-mine.onrender.com/api/tasks?user_id=${userId}`);
             if (!response.ok) throw new Error('Failed to fetch tasks');
             const data = await response.json();
             setTasks(data);
@@ -39,7 +39,7 @@ function TaskList({ userId, onBalanceUpdate }) {
 
     const verifyTask = async (taskId) => {
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/verify_task', {
+            const response = await fetch('https://yara-mine.onrender.com/api/verify_task', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, task_id: taskId }),
@@ -58,7 +58,7 @@ function TaskList({ userId, onBalanceUpdate }) {
 
     const handleClaimTask = async (taskId) => {
         try {
-            const response = await fetch('https://herrprofessor.pythonanywhere.com/api/claim_task', {
+            const response = await fetch('https://yara-mine.onrender.com/api/claim_task', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, task_id: taskId }),
